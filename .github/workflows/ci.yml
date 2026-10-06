@@ -1,0 +1,50 @@
+# Checks every push and pull request: formatting, lints, type checks, tests.
+name: CI
+
+on:
+  push:
+    branches: [master, develop]
+  pull_request:
+
+# A newer push to the same branch cancels the run still in progress.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    # Windows is the platform being shipped; it also builds the Tauri crate
+    # without extra system libraries.
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: npm
+
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: clippy, rustfmt
+
+      - uses: Swatinem/rust-cache@v2
+
+      - name: Install frontend dependencies
+        run: npm ci
+
+      - name: Type check and build frontend
+        # The Tauri crate embeds dist/ at compile time, so build it before clippy.
+        run: npm run build
+
+      - name: Rust formatting
+        run: cargo fmt --all --check
+
+      - name: Clippy
+        run: cargo clippy --workspace --all-targets -- -D warnings
+
+      - name: Tests
+        run: cargo test -p icon-core

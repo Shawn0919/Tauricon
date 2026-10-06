@@ -1,6 +1,48 @@
 # Windows 發佈流程
 
-## 建置安裝檔
+## 自動發佈（GitHub Actions）
+
+推送版本標籤後，GitHub Actions 會自動建置安裝檔並建立 Release 草稿。
+
+### 步驟
+
+1. **更新版本號**（一次修改 `tauri.conf.json`、`Cargo.toml`、`package.json` 與 lockfile）：
+   ```powershell
+   npm run set-version 0.2.0
+   ```
+2. **撰寫變更紀錄**：在 `CHANGELOG.md` 最上方新增 `## [0.2.0] - 日期` 段落。這段內容會自動成為 Release 說明
+3. **commit 並推送**：
+   ```powershell
+   git commit -am "Release 0.2.0"
+   git push origin develop
+   ```
+   等 CI 通過（GitHub 上 Actions 分頁顯示綠色勾勾），再把 `master` 更新到這個版本並推送
+4. **打上標籤並推送**：
+   ```powershell
+   git tag v0.2.0
+   git push origin v0.2.0
+   ```
+5. **等待建置**（約 10–15 分鐘）：到 GitHub 的 **Actions** 分頁可以看到進度
+6. **檢查並發佈**：到 **Releases**，會看到一個草稿，確認說明與附件 `Tauricon_0.2.0_x64-setup.exe` 無誤後，按 **Publish release**
+
+> 建議在發佈前下載草稿中的安裝檔，實際安裝、執行、解除安裝一次。
+
+### 防呆機制
+
+- 標籤版本與設定檔版本不一致時（例如忘了執行 `set-version`），建置會直接失敗，不會產生錯誤版本
+- `CHANGELOG.md` 缺少該版本段落時，建置也會失敗
+- Release 一律先建立為**草稿**，不會在檢查前公開
+
+### 工作流程檔
+
+| 檔案 | 觸發時機 | 內容 |
+|---|---|---|
+| `.github/workflows/ci.yml` | 推送到 `master`／`develop`、Pull Request | 格式檢查、clippy、TypeScript 檢查、測試 |
+| `.github/workflows/release.yml` | 推送 `v*` 標籤 | 版本檢查、測試、建置安裝檔、建立 Release 草稿 |
+
+## 手動建置安裝檔
+
+在本機建置（例如測試用）：
 
 ```powershell
 npm install
@@ -12,15 +54,6 @@ npm run tauri build
 - 安裝模式：目前使用者（`currentUser`），**不需要系統管理員權限**，安裝到 `%LOCALAPPDATA%\Tauricon`
 - 安裝介面語言：繁體中文、簡體中文、English，啟動時可選擇（預設依系統語言）
 - WebView2：Windows 10/11 通常已內建；若缺少，安裝程式會自動下載
-
-## 發佈新版本前
-
-1. 同步修改三處版本號：
-   - `src-tauri/tauri.conf.json` → `version`
-   - `src-tauri/Cargo.toml` → `version`
-   - `package.json` → `version`
-2. 執行測試：`cargo test -p icon-core`、`npx tsc --noEmit`
-3. 建置後，在乾淨的環境（或另一個 Windows 帳號）實際安裝、執行、解除安裝一次
 
 ## 程式碼簽章（尚未啟用）
 

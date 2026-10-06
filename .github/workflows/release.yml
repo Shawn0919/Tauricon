@@ -1,0 +1,61 @@
+# Pushing a version tag (e.g. v0.2.0) builds the installer and creates a
+# draft GitHub Release with it attached. Review the draft, then publish it.
+name: Release
+
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  # Needed to create the release and upload the installer.
+  contents: write
+
+jobs:
+  windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Check the tag matches the app version
+        run: node scripts/version.mjs check ${{ github.ref_name }}
+
+      - name: Release notes from CHANGELOG.md
+        id: notes
+        shell: bash
+        run: |
+          {
+            echo "body<<CHANGELOG_EOF"
+            node scripts/version.mjs notes ${{ github.ref_name }}
+            echo
+            echo "---"
+            echo "**安裝**：下載 \`Tauricon_*_x64-setup.exe\` 並執行。若出現「Windows 已保護您的電腦」，請點「其他資訊 → 仍要執行」。"
+            echo "CHANGELOG_EOF"
+          } >> "$GITHUB_OUTPUT"
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: npm
+
+      - uses: dtolnay/rust-toolchain@stable
+
+      - uses: Swatinem/rust-cache@v2
+
+      - name: Install frontend dependencies
+        run: npm ci
+
+      - name: Tests
+        run: cargo test -p icon-core
+
+      - name: Build installer and create draft release
+        uses: tauri-apps/tauri-action@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # Code signing (when a certificate is available) goes here as
+          # repository secrets; see docs/release-windows.md.
+        with:
+          tagName: ${{ github.ref_name }}
+          releaseName: Tauricon ${{ github.ref_name }}
+          releaseBody: ${{ steps.notes.outputs.body }}
+          releaseDraft: true
+          prerelease: false
