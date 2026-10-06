@@ -1,7 +1,9 @@
 {
-  "name": "app-icon-generator",
+  "name": "tauricon",
   "private": true,
   "version": "0.1.0",
+  "description": "Generate app icons for every platform from a single image",
+  "author": "Shawn",
   "type": "module",
   "scripts": {
     "dev": "vite",

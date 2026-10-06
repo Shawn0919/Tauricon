@@ -13,6 +13,8 @@ export type ExportStatus =
 interface Props {
   outputKind: OutputTarget["kind"];
   onOutputKindChange: (kind: OutputTarget["kind"]) => void;
+  optimizePng: boolean;
+  onOptimizePngChange: (optimize: boolean) => void;
   fileCount: number;
   /** Replaces the default "Generate N files" button label. */
   generateLabel?: string;
@@ -58,6 +60,16 @@ export function ExportBar(props: Props) {
           <FolderIcon width={16} height={16} /> {t("export.folder")}
         </button>
       </div>
+
+      <label className="field-row export-option" title={t("options.optimizePngHelp")}>
+        <input
+          type="checkbox"
+          checked={props.optimizePng}
+          disabled={running}
+          onChange={(e) => props.onOptimizePngChange(e.target.checked)}
+        />
+        <span>{t("options.optimizePng")}</span>
+      </label>
 
       <div className="export-status" aria-live="polite">
         {status.kind === "running" && (

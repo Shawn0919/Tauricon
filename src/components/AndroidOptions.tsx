@@ -79,8 +79,10 @@ export function AndroidOptions({ settings, layers, disabled, onChange, onPickLay
       </label>
 
       {settings.adaptive && (
-        <div className="sub-field">
-          <span className="sub-field-title">{t("android.layers")}</span>
+        // Collapsed by default: most people never touch layers, and the
+        // expanded panel would stretch the platform grid.
+        <details className="sub-field collapsible">
+          <summary className="sub-field-title">{t("android.layers")}</summary>
           <LayerRow
             label="android.layer.foreground"
             fallback="android.layer.useMain"
@@ -134,7 +136,7 @@ export function AndroidOptions({ settings, layers, disabled, onChange, onPickLay
             </>
           )}
           <p className="help">{t("android.legacyNote")}</p>
-        </div>
+        </details>
       )}
     </fieldset>
   );

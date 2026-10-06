@@ -23,7 +23,6 @@ import { usePersistentState } from "./hooks/usePersistentState";
 import { usePreview } from "./hooks/usePreview";
 import { useFileDrop } from "./hooks/useFileDrop";
 import { DropZone } from "./components/DropZone";
-import { OutputOptions } from "./components/OutputOptions";
 import { DEFAULT_STYLE, StylePanel, toBackground, type StyleSettings } from "./components/StylePanel";
 import { PreviewGallery } from "./components/PreviewGallery";
 import { groupPlatforms, PlatformPicker } from "./components/PlatformPicker";
@@ -77,7 +76,7 @@ const DEFAULT_SETTINGS: Settings = {
   recentFiles: [],
 };
 
-const MAX_RECENT_FILES = 6;
+const MAX_RECENT_FILES = 4;
 
 interface Props {
   preferences: Preferences;
@@ -333,10 +332,6 @@ export function Workspace({ preferences }: Props) {
             style={styleSettings}
             onChange={(patch) => update({ style: { ...styleSettings, ...patch } })}
           />
-          <OutputOptions
-            optimizePng={settings.optimizePng}
-            onOptimizePngChange={(optimizePng) => update({ optimizePng })}
-          />
         </aside>
 
         <main className="content">
@@ -400,6 +395,8 @@ export function Workspace({ preferences }: Props) {
       <ExportBar
         outputKind={settings.outputKind}
         onOutputKindChange={(outputKind) => update({ outputKind })}
+        optimizePng={settings.optimizePng}
+        onOptimizePngChange={(optimizePng) => update({ optimizePng })}
         fileCount={fileCount}
         generateLabel={isBatch ? t("export.generateBatch", { count: batch.length }) : undefined}
         blockedReason={blockedReason}

@@ -195,17 +195,6 @@ export function ImageSetWorkspace({ preferences }: Props) {
                 <span>{t("imageSets.android")}</span>
               </label>
             </div>
-            <div className="field">
-              <label className="field-row">
-                <input
-                  type="checkbox"
-                  checked={settings.optimizePng}
-                  onChange={(e) => update({ optimizePng: e.target.checked })}
-                />
-                <span>{t("options.optimizePng")}</span>
-              </label>
-              <p className="help">{t("options.optimizePngHelp")}</p>
-            </div>
           </section>
         </aside>
 
@@ -247,6 +236,8 @@ export function ImageSetWorkspace({ preferences }: Props) {
       <ExportBar
         outputKind={settings.outputKind}
         onOutputKindChange={(outputKind) => update({ outputKind })}
+        optimizePng={settings.optimizePng}
+        onOptimizePngChange={(optimizePng) => update({ optimizePng })}
         fileCount={items.length * filesPerImage}
         blockedReason={blockedReason}
         status={status}

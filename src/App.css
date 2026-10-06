@@ -133,14 +133,14 @@ button {
 
 .app-body {
   display: grid;
-  grid-template-columns: 320px 1fr;
+  grid-template-columns: 360px 1fr;
   min-height: 0;
 }
 
 .sidebar {
   display: flex;
   flex-direction: column;
-  gap: 14px;
+  gap: 12px;
   padding: 20px;
   border-right: 1px solid var(--border);
   overflow-y: auto;
@@ -189,7 +189,8 @@ button {
 
 .dropzone {
   position: relative;
-  aspect-ratio: 1;
+  flex: none;
+  height: 150px;
   width: 100%;
   border: 2px dashed var(--border);
   border-radius: var(--radius);
@@ -447,6 +448,7 @@ input[type="checkbox"] {
 .platform-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  align-items: start;
   gap: 10px;
 }
 
@@ -1063,4 +1065,37 @@ input[type="checkbox"] {
   margin-left: 6px;
   font-weight: 400;
   color: var(--text-muted);
+}
+
+/* ---------- Collapsible sub-sections ---------- */
+
+.collapsible > summary {
+  cursor: pointer;
+  list-style: none;
+  user-select: none;
+}
+
+.collapsible > summary::-webkit-details-marker {
+  display: none;
+}
+
+.collapsible > summary::before {
+  content: "▸";
+  display: inline-block;
+  width: 1em;
+  transition: transform 0.15s;
+}
+
+.collapsible[open] > summary::before {
+  transform: rotate(90deg);
+}
+
+.collapsible:not([open]) {
+  padding-bottom: 10px;
+}
+
+.export-option {
+  white-space: nowrap;
+  font-size: 13px;
+  cursor: pointer;
 }

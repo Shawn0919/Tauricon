@@ -1,6 +1,7 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
   "productName": "Tauricon",
+  "mainBinaryName": "Tauricon",
   "version": "0.1.0",
   "identifier": "com.shawn.tauricon",
   "build": {
@@ -13,25 +14,40 @@
     "windows": [
       {
         "title": "Tauricon - App Icon Generator",
-        "width": 1100,
-        "height": 760,
+        "width": 1600,
+        "height": 1000,
         "minWidth": 900,
-        "minHeight": 640
+        "minHeight": 640,
+        "center": true,
+        "visible": false
       }
     ],
     "security": {
-      "csp": null
+      "csp": "default-src 'self'; connect-src ipc: http://ipc.localhost; img-src 'self' blob: data:; style-src 'self' 'unsafe-inline'"
     }
   },
   "bundle": {
     "active": true,
-    "targets": "all",
+    "targets": ["nsis"],
+    "publisher": "Shawn",
+    "copyright": "© 2026 Shawn",
+    "category": "DeveloperTool",
+    "shortDescription": "Generate app icons for every platform from a single image",
+    "longDescription": "Tauricon turns one image (PNG, JPG, WebP or SVG) into complete, store-ready icon sets for iOS, iPadOS, watchOS, macOS, Android, Windows, the Web and Tauri apps. It includes a style editor, Android adaptive and themed icon layers, batch processing and Xcode/Android image sets. Everything runs locally; your images never leave your computer.",
     "icon": [
       "icons/32x32.png",
       "icons/128x128.png",
       "icons/128x128@2x.png",
       "icons/icon.icns",
       "icons/icon.ico"
-    ]
+    ],
+    "windows": {
+      "nsis": {
+        "installerIcon": "icons/icon.ico",
+        "installMode": "currentUser",
+        "languages": ["TradChinese", "SimpChinese", "English"],
+        "displayLanguageSelector": true
+      }
+    }
   }
 }
