@@ -59,9 +59,52 @@ pub fn write_zip_file(files: &[GeneratedFile], path: &Path) -> Result<()> {
     Ok(())
 }
 
+/// Makes batch item names unique by appending `-2`, `-3`, … Two names
+/// collide when `key` maps them to the same value (e.g. after the
+/// sanitizing a target platform applies), so outputs never overwrite each other.
+pub fn unique_names(names: &[String], key: impl Fn(&str) -> String) -> Vec<String> {
+    let mut seen = std::collections::HashSet::new();
+    names
+        .iter()
+        .map(|name| {
+            let mut candidate = name.clone();
+            let mut n = 2;
+            while !seen.insert(key(&candidate)) {
+                candidate = format!("{name}-{n}");
+                n += 1;
+            }
+            candidate
+        })
+        .collect()
+}
+
+/// Moves every file under `dir/`, e.g. one folder per batch item.
+pub fn prefix_paths(files: Vec<GeneratedFile>, dir: &str) -> Vec<GeneratedFile> {
+    files
+        .into_iter()
+        .map(|f| GeneratedFile {
+            path: format!("{dir}/{}", f.path),
+            bytes: f.bytes,
+        })
+        .collect()
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn unique_names_suffix_collisions() {
+        let names: Vec<String> = ["logo", "Logo", "logo", "other"].map(String::from).into();
+        assert_eq!(
+            unique_names(&names, str::to_lowercase),
+            ["logo", "Logo-2", "logo-3", "other"]
+        );
+        assert_eq!(
+            unique_names(&names, str::to_string),
+            ["logo", "Logo", "logo-2", "other"]
+        );
+    }
 
     #[test]
     fn path_safety() {

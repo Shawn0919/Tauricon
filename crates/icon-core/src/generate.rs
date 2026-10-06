@@ -628,7 +628,10 @@ fn apply_circle_mask(image: &mut RgbaImage) {
     }
 }
 
-fn encode_png(image: RgbaImage, strip_alpha: bool) -> std::result::Result<Vec<u8>, String> {
+pub(crate) fn encode_png(
+    image: RgbaImage,
+    strip_alpha: bool,
+) -> std::result::Result<Vec<u8>, String> {
     let mut out = Cursor::new(Vec::new());
     let result = if strip_alpha {
         DynamicImage::ImageRgba8(image)
@@ -644,7 +647,7 @@ fn encode_png(image: RgbaImage, strip_alpha: bool) -> std::result::Result<Vec<u8
 /// Lossless recompression that keeps the color type and bit depth, so files
 /// still meet store rules (e.g. Play Store's 32-bit PNG, App Store's no-alpha).
 /// Falls back to the original bytes if optimization fails or doesn't help.
-fn optimize_png(png: Vec<u8>) -> Vec<u8> {
+pub(crate) fn optimize_png(png: Vec<u8>) -> Vec<u8> {
     let mut options = oxipng::Options::from_preset(2);
     options.bit_depth_reduction = false;
     options.color_type_reduction = false;

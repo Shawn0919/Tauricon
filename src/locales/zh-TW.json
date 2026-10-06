@@ -76,6 +76,8 @@
   "export.dismiss": "關閉",
   "export.blocked.noSource": "請先選擇圖片",
   "export.blocked.noPlatforms": "請至少選擇一個平台",
+  "export.generateBatch": "為 {count} 張圖產生圖示",
+  "export.failures": "{count} 張失敗",
 
   "dialog.imageFilter": "圖片",
   "dialog.folderTitle": "選擇輸出位置（會建立「{name}」資料夾）",
@@ -143,5 +145,29 @@
   "presets.delete": "刪除「{name}」",
 
   "recent.title": "最近使用",
-  "recent.clear": "清除"
+  "recent.clear": "清除",
+
+  "mode.label": "模式",
+  "mode.icons": "App 圖示",
+  "mode.imageSets": "圖片集",
+
+  "batch.title": "批次（{count} 張）",
+  "batch.clear": "清除批次",
+  "batch.remove": "從批次移除",
+  "batch.previewing": "預覽中",
+  "batch.note": "批次會套用相同的樣式與平台設定，每張圖輸出到各自的資料夾；Android 自訂圖層不適用於批次。",
+
+  "imageSets.drop": "拖放圖片到這裡，或點擊選擇（可多選）",
+  "imageSets.empty": "加入圖片後，會為每張圖產生各種螢幕密度的版本，供 App 內使用。",
+  "imageSets.list": "圖片（{count}）",
+  "imageSets.clear": "全部清除",
+  "imageSets.remove": "移除",
+  "imageSets.targets": "輸出目標",
+  "imageSets.ios": "Xcode Image Set（@1x、@2x、@3x）",
+  "imageSets.android": "Android drawable（mdpi～xxxhdpi）",
+  "imageSets.name": "名稱",
+  "imageSets.baseWidth": "@1x 寬度",
+  "imageSets.baseWidthHelp": "點陣圖預設視為 @3x（寬度 ÷ 3）；SVG 使用原始寬度。",
+  "imageSets.noTargets": "請至少選擇一個輸出目標",
+  "imageSets.noImages": "請先加入圖片"
 }

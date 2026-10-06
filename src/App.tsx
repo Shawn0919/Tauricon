@@ -5,11 +5,20 @@ import { useTheme, type ResolvedTheme } from "./hooks/useTheme";
 import { DEFAULT_PREFERENCES, SettingsDialog, type Preferences } from "./components/SettingsDialog";
 import { GearIcon, LogoIcon, MoonIcon, SunIcon } from "./components/Icons";
 import { SETTINGS_STORAGE_KEY, Workspace } from "./Workspace";
+import { IMAGE_SETS_STORAGE_KEY, ImageSetWorkspace } from "./ImageSetWorkspace";
 import "./App.css";
 
 const PREFERENCES_STORAGE_KEY = "preferences.v1";
+const UI_STORAGE_KEY = "ui.v1";
 
-/** App shell: preferences (theme, language), header and settings dialog. */
+type Mode = "icons" | "imageSets";
+
+const MODES = [
+  { value: "icons", label: "mode.icons" },
+  { value: "imageSets", label: "mode.imageSets" },
+] as const;
+
+/** App shell: preferences (theme, language), mode, header and settings dialog. */
 function App() {
   const [preferences, setPreferences] = usePersistentState<Preferences>(
     PREFERENCES_STORAGE_KEY,
@@ -17,6 +26,7 @@ function App() {
   );
   const updatePreferences = (patch: Partial<Preferences>) =>
     setPreferences((p) => ({ ...p, ...patch }));
+  const [ui, setUi] = usePersistentState<{ mode: Mode }>(UI_STORAGE_KEY, { mode: "icons" });
 
   const theme = useTheme(preferences.theme);
   const locale = resolveLocale(preferences.language);
@@ -30,11 +40,17 @@ function App() {
     <I18nProvider locale={locale}>
       <div className="app">
         <Header
+          mode={ui.mode}
+          onModeChange={(mode) => setUi({ mode })}
           theme={theme}
           onToggleTheme={() => updatePreferences({ theme: theme === "dark" ? "light" : "dark" })}
           onOpenSettings={() => setSettingsOpen(true)}
         />
-        <Workspace preferences={preferences} />
+        {ui.mode === "imageSets" ? (
+          <ImageSetWorkspace preferences={preferences} />
+        ) : (
+          <Workspace preferences={preferences} />
+        )}
       </div>
       <SettingsDialog
         open={settingsOpen}
@@ -48,7 +64,8 @@ function App() {
 }
 
 function resetAllSettings() {
-  for (const key of [PREFERENCES_STORAGE_KEY, SETTINGS_STORAGE_KEY]) {
+  const keys = [PREFERENCES_STORAGE_KEY, SETTINGS_STORAGE_KEY, IMAGE_SETS_STORAGE_KEY, UI_STORAGE_KEY];
+  for (const key of keys) {
     try {
       localStorage.removeItem(key);
     } catch {
@@ -60,12 +77,14 @@ function resetAllSettings() {
 }
 
 interface HeaderProps {
+  mode: Mode;
+  onModeChange: (mode: Mode) => void;
   theme: ResolvedTheme;
   onToggleTheme: () => void;
   onOpenSettings: () => void;
 }
 
-function Header({ theme, onToggleTheme, onOpenSettings }: HeaderProps) {
+function Header({ mode, onModeChange, theme, onToggleTheme, onOpenSettings }: HeaderProps) {
   const { t } = useI18n();
   const themeLabel = theme === "dark" ? t("header.theme.toLight") : t("header.theme.toDark");
 
@@ -73,6 +92,20 @@ function Header({ theme, onToggleTheme, onOpenSettings }: HeaderProps) {
     <header className="app-header">
       <LogoIcon />
       <h1>App Icon Generator</h1>
+      <div className="segmented header-modes" role="tablist" aria-label={t("mode.label")}>
+        {MODES.map(({ value, label }) => (
+          <button
+            key={value}
+            type="button"
+            role="tab"
+            aria-selected={mode === value}
+            className={mode === value ? "is-active" : ""}
+            onClick={() => onModeChange(value)}
+          >
+            {t(label)}
+          </button>
+        ))}
+      </div>
       <div className="header-actions">
         <button type="button" className="icon-button" onClick={onToggleTheme} title={themeLabel} aria-label={themeLabel}>
           {theme === "dark" ? <SunIcon /> : <MoonIcon />}

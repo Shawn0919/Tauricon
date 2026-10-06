@@ -120,12 +120,18 @@ impl Source {
     /// Renders the source into a transparent `px`×`px` square.
     /// Non-square sources keep their aspect ratio and are centered.
     pub fn render(&self, px: u32) -> Result<RgbaImage> {
-        if px == 0 {
+        self.render_box(px, px)
+    }
+
+    /// Renders the source into a transparent `width`×`height` box, keeping
+    /// its aspect ratio and centering it.
+    pub fn render_box(&self, width: u32, height: u32) -> Result<RgbaImage> {
+        if width == 0 || height == 0 {
             return Err(Error::EmptyImage);
         }
         match self {
-            Source::Raster(img) => render_raster(img, px),
-            Source::Vector(tree) => Ok(render_vector(tree, px)),
+            Source::Raster(img) => render_raster(img, width, height),
+            Source::Vector(tree) => Ok(render_vector(tree, width, height)),
         }
     }
 }
@@ -165,16 +171,16 @@ fn system_fonts() -> Arc<usvg::fontdb::Database> {
         .clone()
 }
 
-/// Size of a `w`×`h` box scaled to fit inside a `px` square.
-fn fit(w: f32, h: f32, px: u32) -> (f32, u32, u32) {
-    let scale = (px as f32 / w).min(px as f32 / h);
-    let fw = ((w * scale).round() as u32).clamp(1, px);
-    let fh = ((h * scale).round() as u32).clamp(1, px);
+/// Scale and size of a `w`×`h` image fitted inside a `bw`×`bh` box.
+fn fit(w: f32, h: f32, bw: u32, bh: u32) -> (f32, u32, u32) {
+    let scale = (bw as f32 / w).min(bh as f32 / h);
+    let fw = ((w * scale).round() as u32).clamp(1, bw);
+    let fh = ((h * scale).round() as u32).clamp(1, bh);
     (scale, fw, fh)
 }
 
-fn render_raster(img: &RgbaImage, px: u32) -> Result<RgbaImage> {
-    let (_, fw, fh) = fit(img.width() as f32, img.height() as f32, px);
+fn render_raster(img: &RgbaImage, bw: u32, bh: u32) -> Result<RgbaImage> {
+    let (_, fw, fh) = fit(img.width() as f32, img.height() as f32, bw, bh);
 
     let resized = if (fw, fh) == img.dimensions() {
         img.clone()
@@ -188,26 +194,26 @@ fn render_raster(img: &RgbaImage, px: u32) -> Result<RgbaImage> {
         dst
     };
 
-    if (fw, fh) == (px, px) {
+    if (fw, fh) == (bw, bh) {
         return Ok(resized);
     }
-    let mut canvas = RgbaImage::new(px, px);
+    let mut canvas = RgbaImage::new(bw, bh);
     image::imageops::replace(
         &mut canvas,
         &resized,
-        i64::from((px - fw) / 2),
-        i64::from((px - fh) / 2),
+        i64::from((bw - fw) / 2),
+        i64::from((bh - fh) / 2),
     );
     Ok(canvas)
 }
 
-fn render_vector(tree: &usvg::Tree, px: u32) -> RgbaImage {
+fn render_vector(tree: &usvg::Tree, bw: u32, bh: u32) -> RgbaImage {
     let size = tree.size();
-    let (scale, _, _) = fit(size.width(), size.height(), px);
-    let dx = (px as f32 - size.width() * scale) / 2.0;
-    let dy = (px as f32 - size.height() * scale) / 2.0;
+    let (scale, _, _) = fit(size.width(), size.height(), bw, bh);
+    let dx = (bw as f32 - size.width() * scale) / 2.0;
+    let dy = (bh as f32 - size.height() * scale) / 2.0;
 
-    let mut pixmap = tiny_skia::Pixmap::new(px, px).expect("px is non-zero");
+    let mut pixmap = tiny_skia::Pixmap::new(bw, bh).expect("size is non-zero");
     let transform = tiny_skia::Transform::from_row(scale, 0.0, 0.0, scale, dx, dy);
     resvg::render(tree, transform, &mut pixmap.as_mut());
 
@@ -220,7 +226,7 @@ fn render_vector(tree: &usvg::Tree, px: u32) -> RgbaImage {
             [c.red(), c.green(), c.blue(), c.alpha()]
         })
         .collect();
-    RgbaImage::from_raw(px, px, data).expect("buffer matches dimensions")
+    RgbaImage::from_raw(bw, bh, data).expect("buffer matches dimensions")
 }
 
 #[cfg(test)]

@@ -85,6 +85,26 @@ export interface GenerateReport {
   totalBytes: number;
   outputPath: string;
   elapsedMs: number;
+  /** Batch items that failed; the others were still written. */
+  failures: BatchFailure[];
+}
+
+export interface BatchFailure extends CommandError {
+  path: string;
+}
+
+export interface BatchItem {
+  path: string;
+  /** Output folder (icon batches) or asset name (image sets). */
+  name: string;
+  /** Image sets only: @1x width; null uses the image's default. */
+  baseWidth?: number | null;
+}
+
+export interface ImageSetOptions {
+  ios: boolean;
+  android: boolean;
+  optimizePng: boolean;
 }
 
 /** Shape of every rejected command promise. */
@@ -137,4 +157,39 @@ export function generateIcons(
   const channel = new Channel<Progress>();
   channel.onmessage = onProgress;
   return invoke("generate_icons", { options, target, onProgress: channel });
+}
+
+/** Describes an image file without making it the working source. */
+export function describeImage(path: string): Promise<SourceInfo> {
+  return invoke("describe_image", { path });
+}
+
+/** Object URL of a small square thumbnail; revoke it when done. */
+export async function renderThumbnail(path: string, size: number): Promise<string> {
+  const bytes = await invoke<ArrayBuffer>("render_thumbnail", { path, size });
+  return URL.createObjectURL(new Blob([bytes], { type: "image/png" }));
+}
+
+/** One full icon set per image, each in its own folder named after the item. */
+export function generateIconBatch(
+  items: BatchItem[],
+  options: GenerateOptions,
+  target: OutputTarget,
+  onProgress: (progress: Progress) => void,
+): Promise<GenerateReport> {
+  const channel = new Channel<Progress>();
+  channel.onmessage = onProgress;
+  return invoke("generate_icon_batch", { items, options, target, onProgress: channel });
+}
+
+/** Xcode image sets and/or Android drawables for every image. */
+export function generateImageSets(
+  items: BatchItem[],
+  options: ImageSetOptions,
+  target: OutputTarget,
+  onProgress: (progress: Progress) => void,
+): Promise<GenerateReport> {
+  const channel = new Channel<Progress>();
+  channel.onmessage = onProgress;
+  return invoke("generate_image_sets", { items, options, target, onProgress: channel });
 }

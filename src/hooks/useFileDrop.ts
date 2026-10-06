@@ -5,7 +5,7 @@ import { getCurrentWebview } from "@tauri-apps/api/webview";
  * Native file drag-and-drop over the whole window. Uses Tauri's event so we
  * get real file paths instead of reading file contents in JS.
  */
-export function useFileDrop(onDrop: (path: string) => void): boolean {
+export function useFileDrop(onDrop: (paths: string[]) => void): boolean {
   const [dragging, setDragging] = useState(false);
   const handler = useRef(onDrop);
   handler.current = onDrop;
@@ -22,7 +22,7 @@ export function useFileDrop(onDrop: (path: string) => void): boolean {
           break;
         case "drop":
           setDragging(false);
-          if (payload.paths.length > 0) handler.current(payload.paths[0]);
+          if (payload.paths.length > 0) handler.current(payload.paths);
           break;
       }
     });

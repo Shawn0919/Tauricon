@@ -1,14 +1,16 @@
-import { useEffect, useMemo, useRef, useState } from "react";
-import { dirname, join } from "@tauri-apps/api/path";
-import { open, save } from "@tauri-apps/plugin-dialog";
+import { useEffect, useMemo, useState } from "react";
+import { open } from "@tauri-apps/plugin-dialog";
 import { revealItemInDir } from "@tauri-apps/plugin-opener";
 import {
+  describeImage,
+  generateIconBatch,
   generateIcons,
   listPlatforms,
   loadSource,
   loadLayer,
   clearLayer,
   SUPPORTED_EXTENSIONS,
+  type GenerateOptions,
   type OutputTarget,
   type PlatformInfo,
   type Layer,
@@ -16,7 +18,6 @@ import {
   type StyleOptions,
 } from "./lib/api";
 import { describeError } from "./lib/errors";
-import { hasModKey } from "./lib/platform";
 import { useI18n } from "./i18n";
 import { usePersistentState } from "./hooks/usePersistentState";
 import { usePreview } from "./hooks/usePreview";
@@ -40,7 +41,10 @@ import {
 } from "./components/AndroidOptions";
 import { PresetMenu, type PlatformPreset } from "./components/PresetMenu";
 import { RecentFiles } from "./components/RecentFiles";
+import { BatchList } from "./components/BatchList";
 import { formatOutputName } from "./lib/fileName";
+import { chooseOutputTarget } from "./lib/output";
+import { useShortcuts } from "./hooks/useShortcuts";
 
 export const SETTINGS_STORAGE_KEY = "settings.v1";
 
@@ -91,6 +95,9 @@ export function Workspace({ preferences }: Props) {
   const [sourceError, setSourceError] = useState<unknown>(null);
   const [status, setStatus] = useState<ExportStatus>({ kind: "idle" });
   const [layers, setLayers] = useState<LayerSources>({});
+  // Images queued for batch generation; empty or one item means single mode.
+  const [batch, setBatch] = useState<SourceInfo[]>([]);
+  const isBatch = batch.length > 1;
   // Bumped whenever layer images change so previews re-render.
   const [layerRevision, setLayerRevision] = useState(0);
 
@@ -187,61 +194,70 @@ export function Workspace({ preferences }: Props) {
     }
   }
 
-  const dragging = useFileDrop(load);
+  /** One file loads normally; several start a batch previewing the first. */
+  async function loadMany(paths: string[]) {
+    if (paths.length === 1) {
+      setBatch([]);
+      await load(paths[0]);
+      return;
+    }
+    const results = await Promise.allSettled(paths.map((p) => describeImage(p)));
+    const items = results.flatMap((r) => (r.status === "fulfilled" ? [r.value] : []));
+    const failure = results.find((r) => r.status === "rejected");
+    setBatch(items);
+    if (items.length > 0) await load(items[0].path);
+    // Report unreadable files after load(), which clears earlier errors.
+    if (failure) setSourceError(failure.reason);
+  }
+
+  const dragging = useFileDrop(loadMany);
 
   async function pickFile() {
-    const path = await open({
-      multiple: false,
+    const picked = await open({
+      multiple: true,
       directory: false,
       filters: [{ name: t("dialog.imageFilter"), extensions: SUPPORTED_EXTENSIONS }],
     });
-    if (path) await load(path);
-  }
-
-  /** Asks where to save; returns the target and the folder to remember. */
-  async function chooseTarget(baseName: string): Promise<{ target: OutputTarget; dir: string } | null> {
-    const startDir = preferences.rememberOutputDir ? settings.lastOutputDir : null;
-
-    if (settings.outputKind === "zip") {
-      const fileName = `${baseName}.zip`;
-      const path = await save({
-        defaultPath: startDir ? await join(startDir, fileName) : fileName,
-        filters: [{ name: "ZIP", extensions: ["zip"] }],
-      });
-      return path ? { target: { kind: "zip", path }, dir: await dirname(path) } : null;
-    }
-
-    const dir = await open({
-      directory: true,
-      defaultPath: startDir ?? undefined,
-      title: t("dialog.folderTitle", { name: baseName }),
-    });
-    if (!dir) return null;
-    // Write into a subfolder so platform folders don't scatter over e.g. the Desktop.
-    return { target: { kind: "folder", path: await join(dir, baseName) }, dir };
+    if (picked && picked.length > 0) await loadMany(picked);
   }
 
   async function generate() {
     if (!source || blockedReason || status.kind === "running") return;
 
-    const baseName = formatOutputName(preferences.fileNameTemplate, source.fileName);
-    const choice = await chooseTarget(baseName);
+    const template = preferences.fileNameTemplate;
+    // Batches get one ZIP/folder holding a subfolder per image.
+    const baseName = isBatch
+      ? formatOutputName("{name}-{date}", "AppIcons")
+      : formatOutputName(template, source.fileName);
+    const choice = await chooseOutputTarget({
+      kind: settings.outputKind,
+      baseName,
+      startDir: preferences.rememberOutputDir ? settings.lastOutputDir : null,
+      folderTitle: t("dialog.folderTitle", { name: baseName }),
+    });
     if (!choice) return;
     if (preferences.rememberOutputDir) update({ lastOutputDir: choice.dir });
 
+    const options: GenerateOptions = {
+      platforms: outputs.map((p) => p.id),
+      ...style,
+      optimizePng: settings.optimizePng,
+      disabledTags,
+      monochrome: android.adaptive && android.monochrome,
+    };
+    const onProgress = (progress: { done: number; total: number }) =>
+      setStatus({ kind: "running", progress });
+
     setStatus({ kind: "running", progress: { done: 0, total: 1 } });
     try {
-      const report = await generateIcons(
-        {
-          platforms: outputs.map((p) => p.id),
-          ...style,
-          optimizePng: settings.optimizePng,
-          disabledTags,
-          monochrome: android.adaptive && android.monochrome,
-        },
-        choice.target,
-        (progress) => setStatus({ kind: "running", progress }),
-      );
+      const report = isBatch
+        ? await generateIconBatch(
+            batch.map((item) => ({ path: item.path, name: formatOutputName(template, item.fileName) })),
+            options,
+            choice.target,
+            onProgress,
+          )
+        : await generateIcons(options, choice.target, onProgress);
       setStatus({ kind: "done", report });
       if (preferences.revealAfterExport) revealItemInDir(report.outputPath);
     } catch (err) {
@@ -249,25 +265,7 @@ export function Workspace({ preferences }: Props) {
     }
   }
 
-  // Shortcuts read the latest handlers through a ref instead of re-subscribing.
-  const shortcuts = useRef({ pickFile, generate });
-  shortcuts.current = { pickFile, generate };
-  useEffect(() => {
-    function onKeyDown(event: KeyboardEvent) {
-      if (!hasModKey(event)) return;
-      // Leave shortcuts alone while a modal (e.g. Settings) is open.
-      if (document.querySelector("dialog[open]")) return;
-      if (event.key.toLowerCase() === "o") {
-        event.preventDefault();
-        shortcuts.current.pickFile();
-      } else if (event.key === "Enter") {
-        event.preventDefault();
-        shortcuts.current.generate();
-      }
-    }
-    window.addEventListener("keydown", onKeyDown);
-    return () => window.removeEventListener("keydown", onKeyDown);
-  }, []);
+  useShortcuts({ open: pickFile, generate });
 
   async function pickLayer(layer: Layer) {
     const path = await open({
@@ -306,6 +304,19 @@ export function Workspace({ preferences }: Props) {
             loading={loading}
             onPick={pickFile}
           />
+          {isBatch && (
+            <BatchList
+              items={batch}
+              previewPath={source?.path ?? null}
+              onPreview={(item) => load(item.path)}
+              onRemove={(item) => {
+                const rest = batch.filter((i) => i.path !== item.path);
+                setBatch(rest);
+                if (item.path === source?.path && rest.length > 0) load(rest[0].path);
+              }}
+              onClear={() => setBatch([])}
+            />
+          )}
           <RecentFiles
             paths={settings.recentFiles}
             currentPath={source?.path ?? null}
@@ -390,6 +401,7 @@ export function Workspace({ preferences }: Props) {
         outputKind={settings.outputKind}
         onOutputKindChange={(outputKind) => update({ outputKind })}
         fileCount={fileCount}
+        generateLabel={isBatch ? t("export.generateBatch", { count: batch.length }) : undefined}
         blockedReason={blockedReason}
         status={status}
         onGenerate={generate}

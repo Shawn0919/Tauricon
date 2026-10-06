@@ -7,7 +7,9 @@ use std::sync::{Arc, Mutex};
 use std::time::Instant;
 
 use icon_core::spec::{Condition, Layer};
-use icon_core::{GenerateOptions, PreviewTarget, Source, SourceKind, Sources};
+use icon_core::{
+    GenerateOptions, GeneratedFile, ImageSetOptions, PreviewTarget, Source, SourceKind, Sources,
+};
 use image::ImageFormat;
 use serde::{Deserialize, Serialize};
 use tauri::async_runtime::spawn_blocking;
@@ -228,6 +230,42 @@ pub struct GenerateReport {
     total_bytes: u64,
     output_path: String,
     elapsed_ms: u64,
+    /// Batch items that couldn't be processed (the rest were still written).
+    failures: Vec<BatchFailure>,
+}
+
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct BatchFailure {
+    path: String,
+    #[serde(flatten)]
+    error: CommandError,
+}
+
+/// Writes the files to the chosen target and summarizes the run.
+fn write_output(
+    files: &[GeneratedFile],
+    target: &OutputTarget,
+    started: Instant,
+    failures: Vec<BatchFailure>,
+) -> CommandResult<GenerateReport> {
+    let output_path = match target {
+        OutputTarget::Zip { path } => {
+            icon_core::write_zip_file(files, path)?;
+            path
+        }
+        OutputTarget::Folder { path } => {
+            icon_core::write_to_folder(files, path)?;
+            path
+        }
+    };
+    Ok(GenerateReport {
+        file_count: files.len(),
+        total_bytes: files.iter().map(|f| f.bytes.len() as u64).sum(),
+        output_path: output_path.to_string_lossy().into_owned(),
+        elapsed_ms: started.elapsed().as_millis() as u64,
+        failures,
+    })
 }
 
 #[tauri::command]
@@ -248,24 +286,138 @@ pub async fn generate_icons(
             // A closed channel only means the window went away; keep generating.
             let _ = on_progress.send(Progress { done, total });
         })?;
+        write_output(&files, &target, started, Vec::new())
+    })
+    .await?
+}
 
-        let output_path = match &target {
-            OutputTarget::Zip { path } => {
-                icon_core::write_zip_file(&files, path)?;
-                path
-            }
-            OutputTarget::Folder { path } => {
-                icon_core::write_to_folder(&files, path)?;
-                path
-            }
+/// Describes an image without loading it as the working source (batch lists).
+#[tauri::command]
+pub async fn describe_image(path: PathBuf) -> CommandResult<SourceInfo> {
+    Ok(open_source(&path).await?.1)
+}
+
+/// A small PNG of any image file, for batch list thumbnails.
+#[tauri::command]
+pub async fn render_thumbnail(path: PathBuf, size: u32) -> CommandResult<Response> {
+    let size = size.clamp(16, 256);
+    let png = spawn_blocking(move || -> CommandResult<Vec<u8>> {
+        let image = Source::open(&path)?.render(size)?;
+        let mut out = Cursor::new(Vec::new());
+        image
+            .write_to(&mut out, ImageFormat::Png)
+            .map_err(|e| CommandError::new("encode", e.to_string()))?;
+        Ok(out.into_inner())
+    })
+    .await??;
+    Ok(Response::new(png))
+}
+
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct BatchItem {
+    path: PathBuf,
+    /// Output name: the item's folder (icons) or asset name (image sets).
+    name: String,
+    /// Image sets only: @1x width; defaults from the image.
+    #[serde(default)]
+    base_width: Option<u32>,
+}
+
+/// Runs `each` for every item, collecting outputs and per-item failures.
+/// Progress advances per item (scaled so `done / total` reads as a fraction).
+/// Fails only if every item failed.
+fn run_batch(
+    items: &[BatchItem],
+    names: &[String],
+    on_progress: &Channel<Progress>,
+    each: impl Fn(&BatchItem, &str, &(dyn Fn(f32) + Sync)) -> icon_core::Result<Vec<GeneratedFile>>,
+) -> CommandResult<(Vec<GeneratedFile>, Vec<BatchFailure>)> {
+    const STEPS: usize = 1000;
+    let total = items.len() * STEPS;
+    let mut files = Vec::new();
+    let mut failures = Vec::new();
+
+    for (index, (item, name)) in items.iter().zip(names).enumerate() {
+        let report = |fraction: f32| {
+            let done = index * STEPS + (fraction.clamp(0.0, 1.0) * STEPS as f32) as usize;
+            // A closed channel only means the window went away; keep going.
+            let _ = on_progress.send(Progress { done, total });
         };
+        match each(item, name, &report) {
+            Ok(mut out) => files.append(&mut out),
+            Err(err) => failures.push(BatchFailure {
+                path: item.path.to_string_lossy().into_owned(),
+                error: err.into(),
+            }),
+        }
+        report(1.0);
+    }
 
-        Ok(GenerateReport {
-            file_count: files.len(),
-            total_bytes: files.iter().map(|f| f.bytes.len() as u64).sum(),
-            output_path: output_path.to_string_lossy().into_owned(),
-            elapsed_ms: started.elapsed().as_millis() as u64,
-        })
+    if files.is_empty() && !failures.is_empty() {
+        return Err(failures.swap_remove(0).error);
+    }
+    Ok((files, failures))
+}
+
+/// Generates a full icon set per image, each in its own `<name>/` folder,
+/// with the same options. Adaptive layer images are not used in batches.
+#[tauri::command]
+pub async fn generate_icon_batch(
+    items: Vec<BatchItem>,
+    options: GenerateOptions,
+    target: OutputTarget,
+    on_progress: Channel<Progress>,
+) -> CommandResult<GenerateReport> {
+    if items.is_empty() {
+        return Err(CommandError::no_source());
+    }
+    if options.platforms.is_empty() {
+        return Err(CommandError::new("noPlatforms", "no platforms selected"));
+    }
+
+    spawn_blocking(move || -> CommandResult<GenerateReport> {
+        let started = Instant::now();
+        let raw: Vec<String> = items.iter().map(|i| i.name.clone()).collect();
+        // Case-insensitive, so folder names don't clash on Windows/macOS.
+        let names = icon_core::unique_names(&raw, str::to_lowercase);
+        let (files, failures) = run_batch(&items, &names, &on_progress, |item, name, report| {
+            let source = Source::open(&item.path)?;
+            let files = icon_core::generate(&source, &options, |done, total| {
+                report(done as f32 / total as f32)
+            })?;
+            Ok(icon_core::prefix_paths(files, name))
+        })?;
+        write_output(&files, &target, started, failures)
+    })
+    .await?
+}
+
+/// Generates Xcode image sets and/or Android drawables for every image.
+#[tauri::command]
+pub async fn generate_image_sets(
+    items: Vec<BatchItem>,
+    options: ImageSetOptions,
+    target: OutputTarget,
+    on_progress: Channel<Progress>,
+) -> CommandResult<GenerateReport> {
+    if items.is_empty() {
+        return Err(CommandError::no_source());
+    }
+    if !options.ios && !options.android {
+        return Err(CommandError::new("noPlatforms", "no targets selected"));
+    }
+
+    spawn_blocking(move || -> CommandResult<GenerateReport> {
+        let started = Instant::now();
+        let raw: Vec<String> = items.iter().map(|i| i.name.clone()).collect();
+        // Android's sanitized names are the strictest, so dedupe on them.
+        let names = icon_core::unique_names(&raw, icon_core::imageset::android_resource_name);
+        let (files, failures) = run_batch(&items, &names, &on_progress, |item, name, _| {
+            let source = Source::open(&item.path)?;
+            icon_core::generate_image_set(&source, name, item.base_width, &options)
+        })?;
+        write_output(&files, &target, started, failures)
     })
     .await?
 }

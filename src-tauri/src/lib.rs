@@ -14,6 +14,10 @@ pub fn run() {
             commands::clear_layer,
             commands::render_preview,
             commands::generate_icons,
+            commands::describe_image,
+            commands::render_thumbnail,
+            commands::generate_icon_batch,
+            commands::generate_image_sets,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

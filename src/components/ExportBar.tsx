@@ -14,6 +14,8 @@ interface Props {
   outputKind: OutputTarget["kind"];
   onOutputKindChange: (kind: OutputTarget["kind"]) => void;
   fileCount: number;
+  /** Replaces the default "Generate N files" button label. */
+  generateLabel?: string;
   /** Why generating is unavailable, or null when ready. */
   blockedReason: string | null;
   status: ExportStatus;
@@ -69,6 +71,17 @@ export function ExportBar(props: Props) {
               size: formatBytes(status.report.totalBytes),
               ms: status.report.elapsedMs,
             })}
+            {status.report.failures.length > 0 && (
+              <span
+                className="status-warning"
+                title={status.report.failures
+                  .map((f) => `${f.path}: ${describeError(f, t).message}`)
+                  .join("\n")}
+              >
+                <WarningIcon width={14} height={14} />
+                {t("export.failures", { count: status.report.failures.length })}
+              </span>
+            )}
             <button
               type="button"
               className="link-button"
@@ -102,7 +115,9 @@ export function ExportBar(props: Props) {
         onClick={props.onGenerate}
         title={`${modKey}+Enter`}
       >
-        {running ? t("export.running") : t("export.generate", { count: fileCount })}
+        {running
+          ? t("export.running")
+          : (props.generateLabel ?? t("export.generate", { count: fileCount }))}
       </button>
     </footer>
   );

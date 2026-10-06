@@ -76,6 +76,8 @@
   "export.dismiss": "Dismiss",
   "export.blocked.noSource": "Choose an image first",
   "export.blocked.noPlatforms": "Select at least one platform",
+  "export.generateBatch": "Generate icons for {count} images",
+  "export.failures": "{count} failed",
 
   "dialog.imageFilter": "Images",
   "dialog.folderTitle": "Choose where to save (a \"{name}\" folder will be created)",
@@ -143,5 +145,29 @@
   "presets.delete": "Delete \"{name}\"",
 
   "recent.title": "Recent",
-  "recent.clear": "Clear"
+  "recent.clear": "Clear",
+
+  "mode.label": "Mode",
+  "mode.icons": "App icons",
+  "mode.imageSets": "Image sets",
+
+  "batch.title": "Batch ({count} images)",
+  "batch.clear": "Clear batch",
+  "batch.remove": "Remove from batch",
+  "batch.previewing": "Previewing",
+  "batch.note": "Every image uses the same style and platforms and gets its own folder. Custom Android layers don't apply to batches.",
+
+  "imageSets.drop": "Drop images here, or click to choose (multiple allowed)",
+  "imageSets.empty": "Add images to get versions for every screen density, for use inside your app.",
+  "imageSets.list": "Images ({count})",
+  "imageSets.clear": "Clear all",
+  "imageSets.remove": "Remove",
+  "imageSets.targets": "Targets",
+  "imageSets.ios": "Xcode image set (@1x, @2x, @3x)",
+  "imageSets.android": "Android drawables (mdpi–xxxhdpi)",
+  "imageSets.name": "Name",
+  "imageSets.baseWidth": "@1x width",
+  "imageSets.baseWidthHelp": "Raster images are treated as @3x (width ÷ 3); SVGs use their own width.",
+  "imageSets.noTargets": "Select at least one target",
+  "imageSets.noImages": "Add images first"
 }
