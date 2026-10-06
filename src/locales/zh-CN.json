@@ -96,7 +96,26 @@
   "settings.reset": "重置所有设置",
   "settings.resetConfirm": "所有设置（包括外观、语言、平台和输出设置）都将恢复为默认值。确定要重置吗？",
   "settings.resetConfirmTitle": "重置所有设置",
+  "settings.fileName": "输出名称",
+  "settings.fileNameHelp": "可用变量：{name} 原文件名、{date} 日期、{time} 时间",
+  "settings.fileNameExample": "示例：{example}",
 
   "variant.ios": "全部尺寸",
-  "variant.ios-single": "单一尺寸（Xcode 14+）"
+  "variant.ios-single": "单一尺寸（Xcode 14+）",
+
+  "android.round": "圆形图标（ic_launcher_round）",
+  "android.adaptive": "自适应图标（Android 8.0+）",
+  "android.foregroundScale": "前景缩放",
+  "android.foregroundScaleHelp": "建议 61%：图案完整落在安全区内，任何形状的遮罩都不会裁到。",
+
+  "presets.button": "常用组合",
+  "presets.empty": "尚未保存任何组合",
+  "presets.save": "保存当前组合…",
+  "presets.namePlaceholder": "组合名称",
+  "presets.confirm": "保存",
+  "presets.cancel": "取消",
+  "presets.delete": "删除“{name}”",
+
+  "recent.title": "最近使用",
+  "recent.clear": "清除"
 }

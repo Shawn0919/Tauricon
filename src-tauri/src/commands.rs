@@ -1,5 +1,6 @@
 //! Tauri commands. All image work runs on blocking threads so the UI stays responsive.
 
+use std::collections::BTreeMap;
 use std::io::Cursor;
 use std::path::PathBuf;
 use std::sync::{Arc, Mutex};
@@ -25,7 +26,11 @@ pub struct AppState {
 
 impl AppState {
     fn current(&self) -> CommandResult<Arc<Source>> {
-        self.source.lock().unwrap().clone().ok_or_else(CommandError::no_source)
+        self.source
+            .lock()
+            .unwrap()
+            .clone()
+            .ok_or_else(CommandError::no_source)
     }
 }
 
@@ -37,6 +42,8 @@ pub struct PlatformInfo {
     /// Base platform id when this is an alternative output of it.
     variant_of: Option<String>,
     file_count: usize,
+    /// Number of files per optional tag, so the UI can show counts when tags are disabled.
+    tag_counts: BTreeMap<String, usize>,
 }
 
 #[tauri::command]
@@ -48,6 +55,13 @@ pub fn list_platforms() -> Vec<PlatformInfo> {
             name: p.name.clone(),
             variant_of: p.variant_of.clone(),
             file_count: p.files.len(),
+            tag_counts: p.files.iter().filter_map(|f| f.tag()).fold(
+                BTreeMap::new(),
+                |mut counts, tag| {
+                    *counts.entry(tag.to_string()).or_insert(0) += 1;
+                    counts
+                },
+            ),
         })
         .collect()
 }
@@ -87,7 +101,10 @@ pub async fn load_source(path: PathBuf, state: State<'_, AppState>) -> CommandRe
     }
 
     let info = SourceInfo {
-        file_name: path.file_name().map(|n| n.to_string_lossy().into_owned()).unwrap_or_default(),
+        file_name: path
+            .file_name()
+            .map(|n| n.to_string_lossy().into_owned())
+            .unwrap_or_default(),
         path: path.to_string_lossy().into_owned(),
         kind: source.kind(),
         width,

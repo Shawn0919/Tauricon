@@ -11,10 +11,12 @@ use serde::{Deserialize, Serialize};
 
 use crate::error::{Error, Result};
 use crate::source::Source;
-use crate::spec::{find_platform, AppleSlot, FileSpec, Fill, Mask, PlatformSpec};
+use crate::spec::{AppleSlot, FileSpec, Fill, Mask, PlatformSpec, find_platform};
 
 /// Largest allowed padding, as a fraction of the icon size on each side.
 pub const MAX_PADDING: f32 = 0.4;
+/// Smallest artwork scale a user override may set.
+pub const MIN_CONTENT_SCALE: f32 = 0.1;
 
 /// Every image an `.icns` file carries, matching what `iconutil` produces.
 const ICNS_TYPES: &[IconType] = &[
@@ -38,7 +40,11 @@ pub struct Color {
 }
 
 impl Color {
-    pub const WHITE: Color = Color { r: 255, g: 255, b: 255 };
+    pub const WHITE: Color = Color {
+        r: 255,
+        g: 255,
+        b: 255,
+    };
 
     pub fn hex(self) -> String {
         format!("#{:02X}{:02X}{:02X}", self.r, self.g, self.b)
@@ -49,7 +55,7 @@ impl Color {
     }
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct GenerateOptions {
     /// Platform ids from the built-in presets, e.g. `["ios", "android"]`.
@@ -63,6 +69,12 @@ pub struct GenerateOptions {
     /// Losslessly recompress PNG files (smaller output, slower).
     #[serde(default)]
     pub optimize_png: bool,
+    /// Skip spec files carrying any of these tags (e.g. `["round"]`).
+    #[serde(default)]
+    pub disabled_tags: Vec<String>,
+    /// Overrides for files' `scale_option`s, e.g. `{"android_foreground_scale": 0.7}`.
+    #[serde(default)]
+    pub scales: HashMap<String, f32>,
 }
 
 #[derive(Debug, Clone)]
@@ -86,12 +98,18 @@ pub fn generate(
     let jobs: Vec<(&PlatformSpec, &FileSpec)> = platforms
         .iter()
         .flat_map(|p| p.files.iter().map(move |f| (*p, f)))
+        .filter(|(_, f)| {
+            f.tag()
+                .is_none_or(|tag| !options.disabled_tags.iter().any(|d| d == tag))
+        })
         .collect();
+
+    let scales = Scales(&options.scales);
 
     // Many files share a size, so render each distinct artwork size only once.
     let sizes: BTreeSet<u32> = jobs
         .iter()
-        .flat_map(|(_, file)| artwork_sizes(file, padding))
+        .flat_map(|(_, file)| artwork_sizes(file, padding, scales))
         .collect();
 
     let total = sizes.len() + jobs.len();
@@ -112,12 +130,16 @@ pub fn generate(
         background: options.background,
         padding,
         optimize_png: options.optimize_png,
+        scales,
     };
     jobs.par_iter()
         .map(|(platform, file)| {
             let bytes = ctx.build(platform, file)?;
             tick();
-            Ok(GeneratedFile { path: output_path(platform, file), bytes })
+            Ok(GeneratedFile {
+                path: output_path(platform, file),
+                bytes,
+            })
         })
         .collect()
 }
@@ -133,7 +155,10 @@ fn resolve_platforms(ids: &[String]) -> Result<Vec<&'static PlatformSpec>> {
         match platforms.iter().find(|p| p.family() == platform.family()) {
             Some(existing) if existing.id == platform.id => {}
             Some(existing) => {
-                return Err(Error::PlatformConflict(existing.id.clone(), platform.id.clone()));
+                return Err(Error::PlatformConflict(
+                    existing.id.clone(),
+                    platform.id.clone(),
+                ));
             }
             None => platforms.push(platform),
         }
@@ -147,9 +172,32 @@ fn artwork_px(px: u32, padding: f32, content_scale: f32) -> u32 {
     (size.round() as u32).clamp(1, px)
 }
 
-fn artwork_sizes(file: &FileSpec, padding: f32) -> Vec<u32> {
+/// User-provided scale overrides, looked up by a file's `scale_option`.
+#[derive(Clone, Copy)]
+struct Scales<'a>(&'a HashMap<String, f32>);
+
+impl Scales<'_> {
+    fn resolve(self, content_scale: f32, option: Option<&String>) -> f32 {
+        option
+            .and_then(|name| self.0.get(name))
+            .map_or(content_scale, |&s| s.clamp(MIN_CONTENT_SCALE, 1.0))
+    }
+}
+
+fn artwork_sizes(file: &FileSpec, padding: f32, scales: Scales) -> Vec<u32> {
     match file {
-        FileSpec::Png { px, content_scale, .. } => vec![artwork_px(*px, padding, *content_scale)],
+        FileSpec::Png {
+            px,
+            content_scale,
+            scale_option,
+            ..
+        } => {
+            vec![artwork_px(
+                *px,
+                padding,
+                scales.resolve(*content_scale, scale_option.as_ref()),
+            )]
+        }
         FileSpec::Ico { sizes, .. } => sizes.iter().map(|&s| artwork_px(s, padding, 1.0)).collect(),
         FileSpec::Icns { .. } => ICNS_TYPES
             .iter()
@@ -159,27 +207,44 @@ fn artwork_sizes(file: &FileSpec, padding: f32) -> Vec<u32> {
     }
 }
 
-struct Context {
+struct Context<'a> {
     renders: HashMap<u32, RgbaImage>,
     background: Option<Color>,
     padding: f32,
     optimize_png: bool,
+    scales: Scales<'a>,
 }
 
-impl Context {
+impl Context<'_> {
     fn build(&self, platform: &PlatformSpec, file: &FileSpec) -> Result<Vec<u8>> {
-        let encode_err = |message: String| Error::Encode { path: output_path(platform, file), message };
+        let encode_err = |message: String| Error::Encode {
+            path: output_path(platform, file),
+            message,
+        };
 
         match file {
-            FileSpec::Png { px, fill, mask, content_scale, strip_alpha, .. } => {
+            FileSpec::Png {
+                px,
+                fill,
+                mask,
+                content_scale,
+                scale_option,
+                strip_alpha,
+                ..
+            } => {
                 let mut background = self.resolve_fill(fill.unwrap_or(platform.fill));
                 if *strip_alpha {
                     // Dropping alpha without a background would turn transparency black.
                     background = background.or(Some(Color::WHITE));
                 }
-                let image = self.compose(*px, *content_scale, background, *mask);
+                let scale = self.scales.resolve(*content_scale, scale_option.as_ref());
+                let image = self.compose(*px, scale, background, *mask);
                 let png = encode_png(image, *strip_alpha).map_err(encode_err)?;
-                Ok(if self.optimize_png { optimize_png(png) } else { png })
+                Ok(if self.optimize_png {
+                    optimize_png(png)
+                } else {
+                    png
+                })
             }
             FileSpec::Ico { sizes, .. } => {
                 let background = self.resolve_fill(platform.fill);
@@ -201,20 +266,25 @@ impl Context {
                 for &icon_type in ICNS_TYPES {
                     let size = icon_type.pixel_width();
                     let image = self.compose(size, 1.0, background, Mask::None);
-                    let icon = icns::Image::from_data(PixelFormat::RGBA, size, size, image.into_raw())
-                        .map_err(|e| encode_err(e.to_string()))?;
+                    let icon =
+                        icns::Image::from_data(PixelFormat::RGBA, size, size, image.into_raw())
+                            .map_err(|e| encode_err(e.to_string()))?;
                     family
                         .add_icon_with_type(&icon, icon_type)
                         .map_err(|e| encode_err(e.to_string()))?;
                 }
                 let mut out = Vec::new();
-                family.write(&mut out).map_err(|e| encode_err(e.to_string()))?;
+                family
+                    .write(&mut out)
+                    .map_err(|e| encode_err(e.to_string()))?;
                 Ok(out)
             }
             FileSpec::AppleContents { path } => Ok(apple_contents_json(platform, path)),
             FileSpec::Text { template, .. } => {
                 let background = self.background.unwrap_or(Color::WHITE);
-                Ok(template.replace("{{background_hex}}", &background.hex()).into_bytes())
+                Ok(template
+                    .replace("{{background_hex}}", &background.hex())
+                    .into_bytes())
             }
         }
     }
@@ -227,7 +297,13 @@ impl Context {
         }
     }
 
-    fn compose(&self, px: u32, content_scale: f32, background: Option<Color>, mask: Mask) -> RgbaImage {
+    fn compose(
+        &self,
+        px: u32,
+        content_scale: f32,
+        background: Option<Color>,
+        mask: Mask,
+    ) -> RgbaImage {
         let art = &self.renders[&artwork_px(px, self.padding, content_scale)];
         compose(art, px, background, mask)
     }
@@ -283,7 +359,9 @@ fn apply_circle_mask(image: &mut RgbaImage) {
 fn encode_png(image: RgbaImage, strip_alpha: bool) -> std::result::Result<Vec<u8>, String> {
     let mut out = Cursor::new(Vec::new());
     let result = if strip_alpha {
-        DynamicImage::ImageRgba8(image).into_rgb8().write_to(&mut out, ImageFormat::Png)
+        DynamicImage::ImageRgba8(image)
+            .into_rgb8()
+            .write_to(&mut out, ImageFormat::Png)
     } else {
         image.write_to(&mut out, ImageFormat::Png)
     };
@@ -351,7 +429,11 @@ mod tests {
         assert_eq!(artwork_px(100, 0.0, 1.0), 100);
         assert_eq!(artwork_px(100, 0.1, 1.0), 80);
         assert_eq!(artwork_px(108, 0.0, 0.61), 66);
-        assert_eq!(artwork_px(16, MAX_PADDING, 0.1), 1, "never collapses to zero");
+        assert_eq!(
+            artwork_px(16, MAX_PADDING, 0.1),
+            1,
+            "never collapses to zero"
+        );
     }
 
     #[test]
@@ -372,12 +454,28 @@ mod tests {
 
         let preview = render_preview(&source, 100, Some(bg), 0.2).unwrap();
         assert_eq!(preview.dimensions(), (100, 100));
-        assert_eq!(preview.get_pixel(5, 5).0, [255, 0, 0, 255], "padding shows background");
-        assert_eq!(preview.get_pixel(50, 50).0, [0, 0, 0, 255], "artwork in the middle");
+        assert_eq!(
+            preview.get_pixel(5, 5).0,
+            [255, 0, 0, 255],
+            "padding shows background"
+        );
+        assert_eq!(
+            preview.get_pixel(50, 50).0,
+            [0, 0, 0, 255],
+            "artwork in the middle"
+        );
     }
 
     #[test]
     fn color_hex_is_uppercase_rrggbb() {
-        assert_eq!(Color { r: 255, g: 8, b: 171 }.hex(), "#FF08AB");
+        assert_eq!(
+            Color {
+                r: 255,
+                g: 8,
+                b: 171
+            }
+            .hex(),
+            "#FF08AB"
+        );
     }
 }

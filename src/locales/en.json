@@ -96,7 +96,26 @@
   "settings.reset": "Reset all settings",
   "settings.resetConfirm": "All settings (appearance, language, platforms and output options) will return to their defaults. Reset now?",
   "settings.resetConfirmTitle": "Reset all settings",
+  "settings.fileName": "Output name",
+  "settings.fileNameHelp": "Variables: {name} source file name, {date} date, {time} time",
+  "settings.fileNameExample": "Example: {example}",
 
   "variant.ios": "All sizes",
-  "variant.ios-single": "Single size (Xcode 14+)"
+  "variant.ios-single": "Single size (Xcode 14+)",
+
+  "android.round": "Round icon (ic_launcher_round)",
+  "android.adaptive": "Adaptive icon (Android 8.0+)",
+  "android.foregroundScale": "Foreground scale",
+  "android.foregroundScaleHelp": "61% recommended: the artwork stays inside the safe zone, so no mask shape clips it.",
+
+  "presets.button": "Presets",
+  "presets.empty": "No saved presets yet",
+  "presets.save": "Save current selection…",
+  "presets.namePlaceholder": "Preset name",
+  "presets.confirm": "Save",
+  "presets.cancel": "Cancel",
+  "presets.delete": "Delete \"{name}\"",
+
+  "recent.title": "Recent",
+  "recent.clear": "Clear"
 }

@@ -2,6 +2,7 @@ import { useEffect, useRef } from "react";
 import { ask } from "@tauri-apps/plugin-dialog";
 import { LOCALES, useI18n } from "../i18n";
 import type { ThemePreference } from "../hooks/useTheme";
+import { DEFAULT_NAME_TEMPLATE, formatOutputName } from "../lib/fileName";
 
 export interface Preferences {
   theme: ThemePreference;
@@ -9,6 +10,8 @@ export interface Preferences {
   language: string;
   revealAfterExport: boolean;
   rememberOutputDir: boolean;
+  /** ZIP/folder name; supports {name}, {date}, {time}. */
+  fileNameTemplate: string;
 }
 
 export const DEFAULT_PREFERENCES: Preferences = {
@@ -16,6 +19,7 @@ export const DEFAULT_PREFERENCES: Preferences = {
   language: "system",
   revealAfterExport: false,
   rememberOutputDir: true,
+  fileNameTemplate: DEFAULT_NAME_TEMPLATE,
 };
 
 interface Props {
@@ -108,6 +112,26 @@ export function SettingsDialog({ open, preferences, onChange, onReset, onClose }
 
         <section className="settings-section">
           <h3>{t("settings.output")}</h3>
+          <div className="settings-field">
+            <label className="settings-label" htmlFor="file-name-template">
+              {t("settings.fileName")}
+            </label>
+            <input
+              id="file-name-template"
+              className="text-input"
+              value={preferences.fileNameTemplate}
+              placeholder={DEFAULT_NAME_TEMPLATE}
+              spellCheck={false}
+              onChange={(e) => onChange({ fileNameTemplate: e.target.value })}
+            />
+            <p className="help">
+              {t("settings.fileNameHelp")}
+              <br />
+              {t("settings.fileNameExample", {
+                example: `${formatOutputName(preferences.fileNameTemplate, "logo.png")}.zip`,
+              })}
+            </p>
+          </div>
           <label className="field-row">
             <input
               type="checkbox"

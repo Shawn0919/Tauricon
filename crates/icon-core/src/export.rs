@@ -14,7 +14,9 @@ use crate::generate::GeneratedFile;
 pub fn is_safe_relative_path(path: &str) -> bool {
     !path.is_empty()
         && !path.contains(['\\', ':'])
-        && path.split('/').all(|part| !part.is_empty() && part != "." && part != "..")
+        && path
+            .split('/')
+            .all(|part| !part.is_empty() && part != "." && part != "..")
 }
 
 fn check_paths(files: &[GeneratedFile]) -> Result<()> {
@@ -28,7 +30,10 @@ fn check_paths(files: &[GeneratedFile]) -> Result<()> {
 pub fn write_to_folder(files: &[GeneratedFile], dir: &Path) -> Result<()> {
     check_paths(files)?;
     for file in files {
-        let target = file.path.split('/').fold(dir.to_path_buf(), |acc, part| acc.join(part));
+        let target = file
+            .path
+            .split('/')
+            .fold(dir.to_path_buf(), |acc, part| acc.join(part));
         if let Some(parent) = target.parent() {
             fs::create_dir_all(parent)?;
         }
@@ -60,17 +65,26 @@ mod tests {
 
     #[test]
     fn path_safety() {
-        for ok in ["a.png", "ios/AppIcon.appiconset/Contents.json", "res/mipmap-hdpi/x.png"] {
+        for ok in [
+            "a.png",
+            "ios/AppIcon.appiconset/Contents.json",
+            "res/mipmap-hdpi/x.png",
+        ] {
             assert!(is_safe_relative_path(ok), "{ok}");
         }
-        for bad in ["", "/abs.png", "../x", "a/../b", "a//b", "./a", "a\\b", "C:/x", "a/"] {
+        for bad in [
+            "", "/abs.png", "../x", "a/../b", "a//b", "./a", "a\\b", "C:/x", "a/",
+        ] {
             assert!(!is_safe_relative_path(bad), "{bad}");
         }
     }
 
     #[test]
     fn unsafe_paths_are_rejected_before_writing() {
-        let files = [GeneratedFile { path: "../evil.txt".into(), bytes: vec![1] }];
+        let files = [GeneratedFile {
+            path: "../evil.txt".into(),
+            bytes: vec![1],
+        }];
         let err = write_zip(&files, std::io::Cursor::new(Vec::new())).unwrap_err();
         assert!(matches!(err, Error::UnsafePath(_)));
     }

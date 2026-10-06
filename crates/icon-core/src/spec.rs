@@ -43,6 +43,13 @@ pub enum FileSpec {
         /// Asset catalog slots this file fills, for `Contents.json`.
         #[serde(default)]
         apple: Vec<AppleSlot>,
+        /// Name of a user-adjustable option that overrides `content_scale`
+        /// (see `GenerateOptions::scales`).
+        #[serde(default)]
+        scale_option: Option<String>,
+        /// Optional group the user can switch off (see `GenerateOptions::disabled_tags`).
+        #[serde(default)]
+        tag: Option<String>,
     },
     Ico {
         path: String,
@@ -59,6 +66,8 @@ pub enum FileSpec {
     Text {
         path: String,
         template: String,
+        #[serde(default)]
+        tag: Option<String>,
     },
 }
 
@@ -81,6 +90,13 @@ impl FileSpec {
             | FileSpec::Icns { path }
             | FileSpec::AppleContents { path }
             | FileSpec::Text { path, .. } => path,
+        }
+    }
+
+    pub fn tag(&self) -> Option<&str> {
+        match self {
+            FileSpec::Png { tag, .. } | FileSpec::Text { tag, .. } => tag.as_deref(),
+            _ => None,
         }
     }
 }
@@ -160,22 +176,38 @@ mod tests {
 
         let mut ids = HashSet::new();
         for platform in platforms {
-            assert!(ids.insert(&platform.id), "duplicate platform id {}", platform.id);
+            assert!(
+                ids.insert(&platform.id),
+                "duplicate platform id {}",
+                platform.id
+            );
 
             let mut paths = HashSet::new();
             for file in &platform.files {
                 let path = file.path();
-                assert!(is_safe_relative_path(path), "{}: unsafe path {path}", platform.id);
+                assert!(
+                    is_safe_relative_path(path),
+                    "{}: unsafe path {path}",
+                    platform.id
+                );
                 assert!(paths.insert(path), "{}: duplicate path {path}", platform.id);
 
                 match file {
-                    FileSpec::Png { px, content_scale, .. } => {
+                    FileSpec::Png {
+                        px, content_scale, ..
+                    } => {
                         assert!(*px > 0 && *px <= 4096, "{path}: bad px");
-                        assert!(*content_scale > 0.0 && *content_scale <= 1.0, "{path}: bad scale");
+                        assert!(
+                            *content_scale > 0.0 && *content_scale <= 1.0,
+                            "{path}: bad scale"
+                        );
                     }
                     FileSpec::Ico { sizes, .. } => {
                         assert!(!sizes.is_empty());
-                        assert!(sizes.iter().all(|s| (1..=256).contains(s)), "{path}: ico sizes");
+                        assert!(
+                            sizes.iter().all(|s| (1..=256).contains(s)),
+                            "{path}: ico sizes"
+                        );
                     }
                     _ => {}
                 }
@@ -185,9 +217,16 @@ mod tests {
 
     #[test]
     fn variants_point_at_a_base_platform_and_share_its_folder() {
-        for platform in builtin_platforms().iter().filter(|p| p.variant_of.is_some()) {
+        for platform in builtin_platforms()
+            .iter()
+            .filter(|p| p.variant_of.is_some())
+        {
             let base = find_platform(platform.family()).expect("variant base exists");
-            assert!(base.variant_of.is_none(), "{}: variants must not chain", platform.id);
+            assert!(
+                base.variant_of.is_none(),
+                "{}: variants must not chain",
+                platform.id
+            );
             assert_eq!(platform.output_dir(), base.output_dir(), "{}", platform.id);
         }
     }
@@ -195,8 +234,10 @@ mod tests {
     #[test]
     fn apple_contents_only_where_slots_exist() {
         for platform in builtin_platforms() {
-            let has_contents =
-                platform.files.iter().any(|f| matches!(f, FileSpec::AppleContents { .. }));
+            let has_contents = platform
+                .files
+                .iter()
+                .any(|f| matches!(f, FileSpec::AppleContents { .. }));
             let has_slots = platform
                 .files
                 .iter()

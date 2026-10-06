@@ -13,7 +13,10 @@ pub type CommandResult<T> = Result<T, CommandError>;
 
 impl CommandError {
     pub fn new(code: &'static str, message: impl Into<String>) -> Self {
-        Self { code, message: message.into() }
+        Self {
+            code,
+            message: message.into(),
+        }
     }
 
     pub fn no_source() -> Self {

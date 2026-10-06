@@ -25,6 +25,16 @@ import { groupPlatforms, PlatformPicker } from "./components/PlatformPicker";
 import { ExportBar, type ExportStatus } from "./components/ExportBar";
 import { WarningIcon } from "./components/Icons";
 import type { Preferences } from "./components/SettingsDialog";
+import {
+  AndroidOptions,
+  androidDisabledTags,
+  androidScales,
+  DEFAULT_ANDROID_SETTINGS,
+  type AndroidSettings,
+} from "./components/AndroidOptions";
+import { PresetMenu, type PlatformPreset } from "./components/PresetMenu";
+import { RecentFiles } from "./components/RecentFiles";
+import { formatOutputName } from "./lib/fileName";
 
 export const SETTINGS_STORAGE_KEY = "settings.v1";
 
@@ -40,6 +50,11 @@ interface Settings {
   outputKind: OutputTarget["kind"];
   /** Folder of the last export, used as the dialogs' starting point. */
   lastOutputDir: string | null;
+  android: AndroidSettings;
+  platformPresets: PlatformPreset[];
+  /** Most recent first. Plain paths: on macOS (sandboxed) these will need
+   *  security-scoped bookmarks to reopen across launches. */
+  recentFiles: string[];
 }
 
 const DEFAULT_SETTINGS: Settings = {
@@ -51,7 +66,12 @@ const DEFAULT_SETTINGS: Settings = {
   optimizePng: false,
   outputKind: "zip",
   lastOutputDir: null,
+  android: DEFAULT_ANDROID_SETTINGS,
+  platformPresets: [],
+  recentFiles: [],
 };
+
+const MAX_RECENT_FILES = 6;
 
 interface Props {
   preferences: Preferences;
@@ -85,7 +105,10 @@ export function Workspace({ preferences }: Props) {
   const outputs = families
     .filter((f) => selectedIds.includes(f.base.id))
     .map((f) => f.variants.find((v) => v.id === settings.variants[f.base.id]) ?? f.base);
-  const fileCount = outputs.reduce((sum, p) => sum + p.fileCount, 0);
+  const disabledTags = androidDisabledTags(settings.android);
+  const countFiles = (p: PlatformInfo) =>
+    p.fileCount - disabledTags.reduce((sum, tag) => sum + (p.tagCounts[tag] ?? 0), 0);
+  const fileCount = outputs.reduce((sum, p) => sum + countFiles(p), 0);
 
   const blockedReason = !source
     ? t("export.blocked.noSource")
@@ -99,8 +122,14 @@ export function Workspace({ preferences }: Props) {
     setStatus({ kind: "idle" });
     try {
       setSource(await loadSource(path));
+      setSettings((s) => ({
+        ...s,
+        recentFiles: [path, ...s.recentFiles.filter((p) => p !== path)].slice(0, MAX_RECENT_FILES),
+      }));
     } catch (err) {
       setSourceError(err);
+      // Drop entries that no longer open (moved or deleted files).
+      setSettings((s) => ({ ...s, recentFiles: s.recentFiles.filter((p) => p !== path) }));
     } finally {
       setLoading(false);
     }
@@ -143,7 +172,7 @@ export function Workspace({ preferences }: Props) {
   async function generate() {
     if (!source || blockedReason || status.kind === "running") return;
 
-    const baseName = `${source.fileName.replace(/\.[^.]+$/, "") || "AppIcon"}-icons`;
+    const baseName = formatOutputName(preferences.fileNameTemplate, source.fileName);
     const choice = await chooseTarget(baseName);
     if (!choice) return;
     if (preferences.rememberOutputDir) update({ lastOutputDir: choice.dir });
@@ -156,6 +185,8 @@ export function Workspace({ preferences }: Props) {
           background: backgroundHex ? hexToColor(backgroundHex) : null,
           padding: settings.padding,
           optimizePng: settings.optimizePng,
+          disabledTags,
+          scales: androidScales(settings.android),
         },
         choice.target,
         (progress) => setStatus({ kind: "running", progress }),
@@ -201,6 +232,12 @@ export function Workspace({ preferences }: Props) {
             loading={loading}
             onPick={pickFile}
           />
+          <RecentFiles
+            paths={settings.recentFiles}
+            currentPath={source?.path ?? null}
+            onOpen={load}
+            onClear={() => update({ recentFiles: [] })}
+          />
           {visibleError != null && (
             <div className="warning is-error" role="alert">
               <WarningIcon width={14} height={14} />
@@ -228,6 +265,38 @@ export function Workspace({ preferences }: Props) {
             onChange={(ids) => update({ platforms: ids })}
             onVariantChange={(baseId, variantId) =>
               update({ variants: { ...settings.variants, [baseId]: variantId } })
+            }
+            countFiles={countFiles}
+            renderExtras={(baseId, checked) =>
+              baseId === "android" && (
+                <AndroidOptions
+                  settings={settings.android}
+                  disabled={!checked}
+                  onChange={(patch) => update({ android: { ...settings.android, ...patch } })}
+                />
+              )
+            }
+            headerExtra={
+              <PresetMenu
+                presets={settings.platformPresets}
+                onApply={(preset) => update({ platforms: preset.platforms, variants: preset.variants })}
+                onSave={(name) =>
+                  update({
+                    platformPresets: [
+                      ...settings.platformPresets,
+                      {
+                        id: crypto.randomUUID(),
+                        name,
+                        platforms: selectedIds,
+                        variants: settings.variants,
+                      },
+                    ],
+                  })
+                }
+                onDelete={(id) =>
+                  update({ platformPresets: settings.platformPresets.filter((p) => p.id !== id) })
+                }
+              />
             }
           />
         </main>

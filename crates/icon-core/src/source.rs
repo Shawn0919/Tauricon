@@ -35,7 +35,10 @@ impl Source {
     pub fn open(path: &Path) -> Result<Self> {
         let bytes = std::fs::metadata(path)?.len();
         if bytes > MAX_INPUT_BYTES {
-            return Err(Error::InputTooLarge { bytes, limit: MAX_INPUT_BYTES });
+            return Err(Error::InputTooLarge {
+                bytes,
+                limit: MAX_INPUT_BYTES,
+            });
         }
         let data = std::fs::read(path)?;
 
@@ -132,7 +135,11 @@ fn check_dimensions(width: u32, height: u32) -> Result<()> {
         return Err(Error::EmptyImage);
     }
     if width > MAX_RASTER_DIMENSION || height > MAX_RASTER_DIMENSION {
-        return Err(Error::DimensionsTooLarge { width, height, limit: MAX_RASTER_DIMENSION });
+        return Err(Error::DimensionsTooLarge {
+            width,
+            height,
+            limit: MAX_RASTER_DIMENSION,
+        });
     }
     Ok(())
 }
@@ -174,8 +181,7 @@ fn render_raster(img: &RgbaImage, px: u32) -> Result<RgbaImage> {
     } else {
         let mut dst = RgbaImage::new(fw, fh);
         // Alpha is premultiplied during resampling by default, avoiding dark fringes.
-        let options =
-            ResizeOptions::new().resize_alg(ResizeAlg::Convolution(FilterType::Lanczos3));
+        let options = ResizeOptions::new().resize_alg(ResizeAlg::Convolution(FilterType::Lanczos3));
         Resizer::new()
             .resize(img, &mut dst, &options)
             .map_err(|e| Error::Decode(e.to_string()))?;

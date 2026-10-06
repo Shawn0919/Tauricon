@@ -7,6 +7,8 @@ export interface PlatformInfo {
   /** Base platform id when this is an alternative output of it (e.g. ios-single → ios). */
   variantOf: string | null;
   fileCount: number;
+  /** Files per optional tag (e.g. { round: 5, adaptive: 8 }). */
+  tagCounts: Record<string, number>;
 }
 
 export type SourceKind = "raster" | "vector";
@@ -34,6 +36,10 @@ export interface GenerateOptions {
   padding: number;
   /** Losslessly recompress PNG files. */
   optimizePng: boolean;
+  /** Skip spec files with these tags. */
+  disabledTags: string[];
+  /** Overrides for spec scale options, e.g. { android_foreground_scale: 0.7 }. */
+  scales: Record<string, number>;
 }
 
 export type OutputTarget = { kind: "zip"; path: string } | { kind: "folder"; path: string };

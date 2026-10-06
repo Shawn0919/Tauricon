@@ -11,6 +11,6 @@ pub mod spec;
 
 pub use error::{Error, Result};
 pub use export::{write_to_folder, write_zip, write_zip_file};
-pub use generate::{generate, render_preview, Color, GenerateOptions, GeneratedFile};
+pub use generate::{Color, GenerateOptions, GeneratedFile, generate, render_preview};
 pub use source::{Source, SourceKind};
-pub use spec::{builtin_platforms, PlatformSpec};
+pub use spec::{PlatformSpec, builtin_platforms};

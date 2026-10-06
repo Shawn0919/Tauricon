@@ -718,3 +718,155 @@ input[type="checkbox"] {
   outline: 2px solid var(--accent);
   outline-offset: 2px;
 }
+
+/* ---------- Shared inputs ---------- */
+
+.text-input {
+  width: 100%;
+  padding: 6px 10px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--surface);
+  color: var(--text);
+  font: inherit;
+}
+
+.text-input:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+
+.primary-button.small {
+  padding: 4px 12px;
+  font-size: 13px;
+}
+
+.panel-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.settings-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+/* ---------- Per-platform options (inside cards) ---------- */
+
+.card-options {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin: 0 0 0 26px;
+  padding: 0;
+  border: none;
+  font-size: 13px;
+}
+
+.card-options:disabled {
+  opacity: 0.5;
+}
+
+.card-option-slider {
+  margin-top: 4px;
+}
+
+/* ---------- Dropdown menu ---------- */
+
+.menu {
+  position: relative;
+}
+
+.menu-popover {
+  position: absolute;
+  right: 0;
+  top: calc(100% + 6px);
+  z-index: 10;
+  min-width: 240px;
+  padding: 6px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface);
+  box-shadow: 0 8px 24px rgb(0 0 0 / 0.18);
+}
+
+.menu-item-row {
+  display: flex;
+  align-items: center;
+}
+
+.menu-item {
+  flex: 1;
+  width: 100%;
+  padding: 6px 8px;
+  border: none;
+  border-radius: 6px;
+  background: none;
+  text-align: left;
+  cursor: pointer;
+}
+
+.menu-item:hover {
+  background: var(--surface-muted);
+}
+
+.menu-empty {
+  padding: 6px 8px;
+  font-size: 13px;
+}
+
+.menu-divider {
+  height: 1px;
+  margin: 6px 0;
+  background: var(--border);
+}
+
+.menu-form {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 4px;
+}
+
+.menu-form-actions {
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  gap: 8px;
+}
+
+/* ---------- Recent files ---------- */
+
+.recent h2 {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-muted);
+  margin-bottom: 4px;
+}
+
+.recent ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.recent-item {
+  display: block;
+  width: 100%;
+  padding: 4px 6px;
+  border: none;
+  border-radius: 6px;
+  background: none;
+  text-align: left;
+  font-size: 13px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.recent-item:hover {
+  background: var(--surface-muted);
+}

@@ -1,3 +1,4 @@
+import type { ReactNode } from "react";
 import { isMessageKey, useI18n } from "../i18n";
 import type { PlatformInfo } from "../lib/api";
 import { platformDescriptionKey } from "../lib/platformMeta";
@@ -25,9 +26,16 @@ interface Props {
   variants: Record<string, string>;
   onChange: (selected: string[]) => void;
   onVariantChange: (baseId: string, variantId: string) => void;
+  /** Files a platform will produce with the current options. */
+  countFiles: (platform: PlatformInfo) => number;
+  /** Extra controls rendered inside a platform's card. */
+  renderExtras?: (baseId: string, checked: boolean) => ReactNode;
+  /** Extra controls in the panel header (e.g. presets). */
+  headerExtra?: ReactNode;
 }
 
-export function PlatformPicker({ families, selected, variants, onChange, onVariantChange }: Props) {
+export function PlatformPicker(props: Props) {
+  const { families, selected, variants, onChange, onVariantChange, countFiles } = props;
   const { t } = useI18n();
   const allSelected = families.length > 0 && families.every((f) => selected.includes(f.base.id));
 
@@ -39,13 +47,16 @@ export function PlatformPicker({ families, selected, variants, onChange, onVaria
     <section className="panel">
       <div className="panel-header">
         <h2>{t("platforms.title")}</h2>
-        <button
-          type="button"
-          className="link-button"
-          onClick={() => onChange(allSelected ? [] : families.map((f) => f.base.id))}
-        >
-          {allSelected ? t("platforms.selectNone") : t("platforms.selectAll")}
-        </button>
+        <div className="panel-actions">
+          {props.headerExtra}
+          <button
+            type="button"
+            className="link-button"
+            onClick={() => onChange(allSelected ? [] : families.map((f) => f.base.id))}
+          >
+            {allSelected ? t("platforms.selectNone") : t("platforms.selectAll")}
+          </button>
+        </div>
       </div>
       <div className="platform-grid">
         {families.map(({ base, variants: options }) => {
@@ -60,7 +71,7 @@ export function PlatformPicker({ families, selected, variants, onChange, onVaria
                   <span className="platform-name">
                     {base.name}
                     <span className="badge">
-                      {t("platforms.fileCount", { count: active.fileCount })}
+                      {t("platforms.fileCount", { count: countFiles(active) })}
                     </span>
                   </span>
                   {description && <span className="muted">{t(description)}</span>}
@@ -85,6 +96,7 @@ export function PlatformPicker({ families, selected, variants, onChange, onVaria
                   })}
                 </div>
               )}
+              {props.renderExtras?.(base.id, checked)}
             </div>
           );
         })}
