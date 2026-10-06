@@ -1,17 +1,21 @@
 import { useI18n } from "../i18n";
-import { PREVIEW_TILES, type PreviewTile } from "../lib/platformMeta";
+import { PREVIEW_TILES, type PreviewSource, type PreviewTile } from "../lib/platformMeta";
 
 interface Props {
-  previewUrl: string | null;
+  /** Rendered preview URLs; a source is null when not rendered (yet). */
+  previews: Record<PreviewSource, string | null>;
   platformIds: string[];
 }
 
 const SMALL_SIZES = [16, 24, 32, 48];
 
-export function PreviewGallery({ previewUrl, platformIds }: Props) {
+export function PreviewGallery({ previews, platformIds }: Props) {
   const { t } = useI18n();
   const tiles: PreviewTile[] = platformIds.flatMap((id) => PREVIEW_TILES[id] ?? []);
   const showFavicon = platformIds.includes("web");
+  const previewUrl = previews.base;
+  // Small sizes matter most for Windows/Web, which show the user's shape.
+  const smallUrl = previews.custom ?? previews.base;
 
   return (
     <section className="panel">
@@ -25,7 +29,7 @@ export function PreviewGallery({ previewUrl, platformIds }: Props) {
               <figure key={tile.label} className="tile">
                 <img
                   className={`tile-image shape-${tile.shape} ${tile.opaque ? "opaque" : "checkerboard"}`}
-                  src={previewUrl}
+                  src={previews[tile.source] ?? previewUrl}
                   alt={t(tile.label)}
                 />
                 <figcaption>
@@ -40,13 +44,13 @@ export function PreviewGallery({ previewUrl, platformIds }: Props) {
             <span className="muted">{t("preview.smallSizes")}</span>
             {SMALL_SIZES.map((px) => (
               <figure key={px} className="small-size">
-                <img src={previewUrl} width={px} height={px} alt={`${px} px`} />
+                <img src={smallUrl ?? undefined} width={px} height={px} alt={`${px} px`} />
                 <figcaption>{px}</figcaption>
               </figure>
             ))}
             {showFavicon && (
               <div className="browser-tab" aria-label={t("preview.browserTab")}>
-                <img src={previewUrl} width={16} height={16} alt="" />
+                <img src={smallUrl ?? undefined} width={16} height={16} alt="" />
                 <span>{t("preview.siteName")}</span>
               </div>
             )}

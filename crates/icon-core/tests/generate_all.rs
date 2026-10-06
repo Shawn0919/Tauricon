@@ -3,7 +3,9 @@ use std::io::Cursor;
 use std::sync::Mutex;
 
 use icon_core::spec::FileSpec;
-use icon_core::{Color, GenerateOptions, GeneratedFile, Source, builtin_platforms, generate};
+use icon_core::{
+    Background, Color, GenerateOptions, GeneratedFile, Source, builtin_platforms, generate,
+};
 use image::{ColorType, ImageFormat, ImageReader, Rgba, RgbaImage};
 
 /// Opaque blue circle on a transparent background, so fills and masks are observable.
@@ -30,7 +32,7 @@ fn all_platform_ids() -> Vec<String> {
 fn generate_all(source: &Source, background: Option<Color>) -> HashMap<String, Vec<u8>> {
     let options = GenerateOptions {
         platforms: all_platform_ids(),
-        background,
+        background: background.map(Background::solid),
         padding: 0.0,
         optimize_png: false,
         ..Default::default()

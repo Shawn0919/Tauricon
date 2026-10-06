@@ -1,6 +1,7 @@
 {
   "id": "macos",
   "name": "macOS",
+  "shape": "macos",
   "files": [
     { "kind": "png", "path": "AppIcon.appiconset/icon_16.png", "px": 16,
       "apple": [{ "idiom": "mac", "size": "16x16", "scale": "1x" }] },

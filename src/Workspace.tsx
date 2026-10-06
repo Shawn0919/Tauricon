@@ -10,8 +10,8 @@ import {
   type OutputTarget,
   type PlatformInfo,
   type SourceInfo,
+  type StyleOptions,
 } from "./lib/api";
-import { hexToColor } from "./lib/color";
 import { describeError } from "./lib/errors";
 import { hasModKey } from "./lib/platform";
 import { useI18n } from "./i18n";
@@ -20,6 +20,7 @@ import { usePreview } from "./hooks/usePreview";
 import { useFileDrop } from "./hooks/useFileDrop";
 import { DropZone } from "./components/DropZone";
 import { OutputOptions } from "./components/OutputOptions";
+import { DEFAULT_STYLE, StylePanel, toBackground, type StyleSettings } from "./components/StylePanel";
 import { PreviewGallery } from "./components/PreviewGallery";
 import { groupPlatforms, PlatformPicker } from "./components/PlatformPicker";
 import { ExportBar, type ExportStatus } from "./components/ExportBar";
@@ -43,9 +44,7 @@ interface Settings {
   platforms: string[] | null;
   /** Chosen variant per base platform id (e.g. { ios: "ios-single" }). */
   variants: Record<string, string>;
-  fillBackground: boolean;
-  backgroundHex: string;
-  padding: number;
+  style: StyleSettings;
   optimizePng: boolean;
   outputKind: OutputTarget["kind"];
   /** Folder of the last export, used as the dialogs' starting point. */
@@ -60,9 +59,7 @@ interface Settings {
 const DEFAULT_SETTINGS: Settings = {
   platforms: null,
   variants: {},
-  fillBackground: false,
-  backgroundHex: "#FFFFFF",
-  padding: 0,
+  style: DEFAULT_STYLE,
   optimizePng: false,
   outputKind: "zip",
   lastOutputDir: null,
@@ -93,8 +90,6 @@ export function Workspace({ preferences }: Props) {
     listPlatforms().then(setPlatforms);
   }, []);
 
-  const backgroundHex = settings.fillBackground ? settings.backgroundHex : null;
-  const preview = usePreview(source, backgroundHex, settings.padding);
 
   const families = useMemo(() => groupPlatforms(platforms), [platforms]);
   // Base ids in the backend's display order, regardless of click order.
@@ -105,6 +100,23 @@ export function Workspace({ preferences }: Props) {
   const outputs = families
     .filter((f) => selectedIds.includes(f.base.id))
     .map((f) => f.variants.find((v) => v.id === settings.variants[f.base.id]) ?? f.base);
+  const style: StyleOptions = {
+    background: toBackground(settings.style),
+    padding: settings.style.padding,
+    cornerRadius: settings.style.cornerRadius,
+    macosTemplate: settings.style.macosTemplate,
+    scales: androidScales(settings.android),
+  };
+  const preview = usePreview(source, style, null);
+  const macPreview = usePreview(source, style, "macos", selectedIds.includes("macos"));
+  // Windows and Web share the "custom" shape; either one's preview works.
+  const customPreview = usePreview(
+    source,
+    style,
+    "windows",
+    selectedIds.includes("windows") || selectedIds.includes("web"),
+  );
+
   const disabledTags = androidDisabledTags(settings.android);
   const countFiles = (p: PlatformInfo) =>
     p.fileCount - disabledTags.reduce((sum, tag) => sum + (p.tagCounts[tag] ?? 0), 0);
@@ -182,11 +194,9 @@ export function Workspace({ preferences }: Props) {
       const report = await generateIcons(
         {
           platforms: outputs.map((p) => p.id),
-          background: backgroundHex ? hexToColor(backgroundHex) : null,
-          padding: settings.padding,
+          ...style,
           optimizePng: settings.optimizePng,
           disabledTags,
-          scales: androidScales(settings.android),
         },
         choice.target,
         (progress) => setStatus({ kind: "running", progress }),
@@ -244,20 +254,21 @@ export function Workspace({ preferences }: Props) {
               {describeError(visibleError, t).message}
             </div>
           )}
+          <StylePanel
+            style={settings.style}
+            onChange={(patch) => update({ style: { ...settings.style, ...patch } })}
+          />
           <OutputOptions
-            fillBackground={settings.fillBackground}
-            backgroundHex={settings.backgroundHex}
-            padding={settings.padding}
             optimizePng={settings.optimizePng}
-            onFillChange={(fillBackground) => update({ fillBackground })}
-            onBackgroundChange={(backgroundHex) => update({ backgroundHex })}
-            onPaddingChange={(padding) => update({ padding })}
             onOptimizePngChange={(optimizePng) => update({ optimizePng })}
           />
         </aside>
 
         <main className="content">
-          <PreviewGallery previewUrl={preview.url} platformIds={selectedIds} />
+          <PreviewGallery
+            previews={{ base: preview.url, macos: macPreview.url, custom: customPreview.url }}
+            platformIds={selectedIds}
+          />
           <PlatformPicker
             families={families}
             selected={selectedIds}

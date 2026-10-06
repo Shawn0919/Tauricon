@@ -20,6 +20,9 @@ pub struct PlatformSpec {
     /// Default background behavior for this platform's images.
     #[serde(default)]
     pub fill: Fill,
+    /// How this platform's icons are shaped (see [`ShapeKind`]).
+    #[serde(default)]
+    pub shape: ShapeKind,
     pub files: Vec<FileSpec>,
 }
 
@@ -50,6 +53,9 @@ pub enum FileSpec {
         /// Optional group the user can switch off (see `GenerateOptions::disabled_tags`).
         #[serde(default)]
         tag: Option<String>,
+        /// Overrides the platform's `shape`.
+        #[serde(default)]
+        shape: Option<ShapeKind>,
     },
     Ico {
         path: String,
@@ -99,6 +105,19 @@ impl FileSpec {
             _ => None,
         }
     }
+}
+
+/// Who shapes the icon's outline.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum ShapeKind {
+    /// The OS masks it (iOS, Android, watchOS): always output a full square.
+    #[default]
+    System,
+    /// Shown as-is (Windows, Web): the user's corner radius applies.
+    Custom,
+    /// macOS: the user's corner radius, or Apple's template when enabled.
+    Macos,
 }
 
 /// Whether an image gets a solid background behind the artwork.

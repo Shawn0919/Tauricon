@@ -6,7 +6,7 @@ use std::path::PathBuf;
 use std::sync::{Arc, Mutex};
 use std::time::Instant;
 
-use icon_core::{Color, GenerateOptions, Source, SourceKind};
+use icon_core::{GenerateOptions, Source, SourceKind};
 use image::ImageFormat;
 use serde::{Deserialize, Serialize};
 use tauri::async_runtime::spawn_blocking;
@@ -115,18 +115,20 @@ pub async fn load_source(path: PathBuf, state: State<'_, AppState>) -> CommandRe
     Ok(info)
 }
 
-/// Returns PNG bytes (an `ArrayBuffer` on the JS side).
+/// Returns PNG bytes (an `ArrayBuffer` on the JS side), styled like the main
+/// icon of `platform`, or as a plain full-bleed square when it is `None`.
+/// Only the style fields of `options` matter; `platforms` is ignored.
 #[tauri::command]
 pub async fn render_preview(
     size: u32,
-    background: Option<Color>,
-    padding: f32,
+    options: GenerateOptions,
+    platform: Option<String>,
     state: State<'_, AppState>,
 ) -> CommandResult<Response> {
     let source = state.current()?;
     let size = size.clamp(16, 1024);
     let png = spawn_blocking(move || -> CommandResult<Vec<u8>> {
-        let image = icon_core::render_preview(&source, size, background, padding)?;
+        let image = icon_core::render_preview(&source, size, &options, platform.as_deref())?;
         let mut out = Cursor::new(Vec::new());
         image
             .write_to(&mut out, ImageFormat::Png)

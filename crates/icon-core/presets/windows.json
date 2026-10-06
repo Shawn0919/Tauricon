@@ -1,6 +1,7 @@
 {
   "id": "windows",
   "name": "Windows",
+  "shape": "custom",
   "files": [
     { "kind": "ico", "path": "app.ico", "sizes": [16, 24, 32, 48, 64, 128, 256] }
   ]

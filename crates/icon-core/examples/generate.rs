@@ -1,6 +1,8 @@
 //! Try the engine without the UI:
 //!
 //! cargo run -p icon-core --release --example generate -- <input> <output.zip|output-dir> [platform...]
+//!
+//! Set ICON_OPTIONS to a JSON object to apply style options.
 
 use std::path::PathBuf;
 use std::time::Instant;
@@ -32,13 +34,13 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let started = Instant::now();
     let source = Source::open(&PathBuf::from(&input))?;
-    let options = GenerateOptions {
-        platforms,
-        background: None,
-        padding: 0.0,
-        optimize_png: false,
-        ..Default::default()
+    // Style options as JSON (same shape the app sends), e.g.
+    // ICON_OPTIONS='{"macosTemplate":true,"cornerRadius":0.2}'
+    let mut options: GenerateOptions = match std::env::var("ICON_OPTIONS") {
+        Ok(json) => serde_json::from_str(&json)?,
+        Err(_) => GenerateOptions::default(),
     };
+    options.platforms = platforms;
     let files = generate(&source, &options, |_, _| {})?;
 
     let output = PathBuf::from(output);

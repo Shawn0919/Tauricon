@@ -1,26 +1,32 @@
 import { useEffect, useRef, useState } from "react";
-import { renderPreview, type SourceInfo } from "../lib/api";
-import { hexToColor } from "../lib/color";
+import { renderPreview, type SourceInfo, type StyleOptions } from "../lib/api";
 
 const PREVIEW_PX = 512;
 
 /**
- * Object URL of the composed icon, re-rendered by Rust whenever the source or
- * settings change. Stale responses are dropped so fast slider drags can't
- * show an older result last.
+ * Object URL of the icon rendered by Rust, styled like `platform`'s main icon
+ * (or full-bleed when null). Re-renders when the source or style changes;
+ * stale responses are dropped so fast slider drags can't show an older result
+ * last. Pass `enabled: false` to skip rendering previews nobody will see.
  */
-export function usePreview(source: SourceInfo | null, backgroundHex: string | null, padding: number) {
+export function usePreview(
+  source: SourceInfo | null,
+  style: StyleOptions,
+  platform: string | null,
+  enabled = true,
+) {
   const [url, setUrl] = useState<string | null>(null);
   const [error, setError] = useState<unknown>(null);
   const latest = useRef(0);
   const current = useRef<string | null>(null);
+  // Style objects are rebuilt every render; compare by value.
+  const styleKey = JSON.stringify(style);
 
   useEffect(() => {
-    if (!source) return;
+    if (!source || !enabled) return;
     const request = ++latest.current;
-    const background = backgroundHex ? hexToColor(backgroundHex) : null;
 
-    renderPreview(PREVIEW_PX, background, padding)
+    renderPreview(PREVIEW_PX, JSON.parse(styleKey) as StyleOptions, platform)
       .then((next) => {
         if (request !== latest.current) {
           URL.revokeObjectURL(next);
@@ -34,7 +40,7 @@ export function usePreview(source: SourceInfo | null, backgroundHex: string | nu
       .catch((err) => {
         if (request === latest.current) setError(err);
       });
-  }, [source, backgroundHex, padding]);
+  }, [source, styleKey, platform, enabled]);
 
   useEffect(
     () => () => {
@@ -43,5 +49,5 @@ export function usePreview(source: SourceInfo | null, backgroundHex: string | nu
     [],
   );
 
-  return { url: source ? url : null, error };
+  return { url: source && enabled ? url : null, error };
 }

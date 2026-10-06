@@ -29,17 +29,30 @@ export interface Color {
   b: number;
 }
 
-export interface GenerateOptions {
-  platforms: string[];
-  background: Color | null;
-  /** Fraction of the icon size on each side, 0–0.4. */
+export type Background =
+  | { type: "solid"; color: Color }
+  /** CSS-style angle in degrees: 0 = bottom→top, 90 = left→right, 180 = top→bottom. */
+  | { type: "linearGradient"; from: Color; to: Color; angle: number };
+
+/** Visual options shared by previews and generation. */
+export interface StyleOptions {
+  background: Background | null;
+  /** Fraction of the icon body on each side, 0–0.4. */
   padding: number;
+  /** Corner radius for macOS/Windows/Web, fraction of the icon size, 0–0.5. */
+  cornerRadius: number;
+  /** Apple's macOS template: inset body, rounded corners, shadow. */
+  macosTemplate: boolean;
+  /** Overrides for spec scale options, e.g. { android_foreground_scale: 0.7 }. */
+  scales: Record<string, number>;
+}
+
+export interface GenerateOptions extends StyleOptions {
+  platforms: string[];
   /** Losslessly recompress PNG files. */
   optimizePng: boolean;
   /** Skip spec files with these tags. */
   disabledTags: string[];
-  /** Overrides for spec scale options, e.g. { android_foreground_scale: 0.7 }. */
-  scales: Record<string, number>;
 }
 
 export type OutputTarget = { kind: "zip"; path: string } | { kind: "folder"; path: string };
@@ -76,13 +89,17 @@ export function loadSource(path: string): Promise<SourceInfo> {
   return invoke("load_source", { path });
 }
 
-/** Resolves to an object URL for a PNG; revoke it with URL.revokeObjectURL when replaced. */
+/**
+ * Renders the icon as `platform`'s main icon would look (or full-bleed when
+ * null). Resolves to an object URL for a PNG; revoke it with URL.revokeObjectURL.
+ */
 export async function renderPreview(
   size: number,
-  background: Color | null,
-  padding: number,
+  style: StyleOptions,
+  platform: string | null,
 ): Promise<string> {
-  const bytes = await invoke<ArrayBuffer>("render_preview", { size, background, padding });
+  const options = { ...style, platforms: [] };
+  const bytes = await invoke<ArrayBuffer>("render_preview", { size, options, platform });
   return URL.createObjectURL(new Blob([bytes], { type: "image/png" }));
 }
 
