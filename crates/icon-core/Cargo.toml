@@ -2,6 +2,7 @@
 name = "icon-core"
 version = "0.1.0"
 edition = "2024"
+license = "PolyForm-Noncommercial-1.0.0"
 
 [dependencies]
 fast_image_resize = { version = "6.1.0", features = ["image"] }

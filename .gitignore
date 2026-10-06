@@ -25,3 +25,16 @@ dist-ssr
 
 # Rust build output (workspace root)
 /target/
+
+# Personal AI assistant instructions (kept local)
+CLAUDE.md
+AGENTS.md
+
+# Secrets: signing certificates, updater keys, environment files
+*.pfx
+*.p12
+*.pem
+*.key
+*.cer
+.env
+.env.*

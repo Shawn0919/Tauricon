@@ -3,6 +3,7 @@ name = "app-icon-generator"
 version = "0.1.0"
 description = "Tauricon - generate app icons for every platform from a single image"
 authors = ["Shawn"]
+license = "PolyForm-Noncommercial-1.0.0"
 edition = "2021"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html

@@ -31,6 +31,7 @@
     "targets": ["nsis"],
     "publisher": "Shawn",
     "copyright": "© 2026 Shawn",
+    "license": "PolyForm-Noncommercial-1.0.0",
     "category": "DeveloperTool",
     "shortDescription": "Generate app icons for every platform from a single image",
     "longDescription": "Tauricon turns one image (PNG, JPG, WebP or SVG) into complete, store-ready icon sets for iOS, iPadOS, watchOS, macOS, Android, Windows, the Web and Tauri apps. It includes a style editor, Android adaptive and themed icon layers, batch processing and Xcode/Android image sets. Everything runs locally; your images never leave your computer.",
