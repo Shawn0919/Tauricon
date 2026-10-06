@@ -133,12 +133,12 @@ export function Workspace({ preferences }: Props) {
     { kind: "platform", id: "macos" },
     { enabled: selectedIds.includes("macos") },
   );
-  // Windows and Web share the "custom" shape; either one's preview works.
+  // Windows, Web and Tauri share the "custom" shape; any one's preview works.
   const customPreview = usePreview(
     source,
     style,
     { kind: "platform", id: "windows" },
-    { enabled: selectedIds.includes("windows") || selectedIds.includes("web") },
+    { enabled: ["windows", "web", "tauri"].some((id) => selectedIds.includes(id)) },
   );
   const adaptivePreview = usePreview(
     source,

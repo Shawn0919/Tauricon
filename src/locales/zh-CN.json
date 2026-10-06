@@ -52,6 +52,7 @@
   "preview.tile.windows": "Windows",
   "preview.note.noMask": "系统不会自动裁剪",
   "preview.tile.androidThemed": "Android 主题",
+  "preview.tile.tauri": "Tauri",
 
   "platforms.title": "平台",
   "platforms.selectAll": "全选",
@@ -64,6 +65,7 @@
   "platform.android.description": "各密度 mipmap、圆形、自适应图标、Play 商店图",
   "platform.windows.description": "app.ico（16–256 px）",
   "platform.web.description": "favicon、apple-touch-icon、PWA manifest",
+  "platform.tauri.description": "Tauri 项目的 src-tauri/icons（.ico、.icns、各尺寸 PNG）",
 
   "export.kindLabel": "输出方式",
   "export.zip": "ZIP 文件",

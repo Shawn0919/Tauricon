@@ -91,7 +91,9 @@ function Header({ mode, onModeChange, theme, onToggleTheme, onOpenSettings }: He
   return (
     <header className="app-header">
       <LogoIcon />
-      <h1>App Icon Generator</h1>
+      <h1>
+        Tauricon <span className="app-subtitle">App Icon Generator</span>
+      </h1>
       <div className="segmented header-modes" role="tablist" aria-label={t("mode.label")}>
         {MODES.map(({ value, label }) => (
           <button

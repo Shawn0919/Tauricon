@@ -1,0 +1,23 @@
+{
+  "id": "tauri",
+  "name": "Tauri",
+  "shape": "custom",
+  "files": [
+    { "kind": "png", "path": "32x32.png", "px": 32 },
+    { "kind": "png", "path": "128x128.png", "px": 128 },
+    { "kind": "png", "path": "128x128@2x.png", "px": 256 },
+    { "kind": "png", "path": "icon.png", "px": 512 },
+    { "kind": "ico", "path": "icon.ico", "sizes": [16, 24, 32, 48, 64, 256] },
+    { "kind": "icns", "path": "icon.icns" },
+    { "kind": "png", "path": "Square30x30Logo.png", "px": 30 },
+    { "kind": "png", "path": "Square44x44Logo.png", "px": 44 },
+    { "kind": "png", "path": "Square71x71Logo.png", "px": 71 },
+    { "kind": "png", "path": "Square89x89Logo.png", "px": 89 },
+    { "kind": "png", "path": "Square107x107Logo.png", "px": 107 },
+    { "kind": "png", "path": "Square142x142Logo.png", "px": 142 },
+    { "kind": "png", "path": "Square150x150Logo.png", "px": 150 },
+    { "kind": "png", "path": "Square284x284Logo.png", "px": 284 },
+    { "kind": "png", "path": "Square310x310Logo.png", "px": 310 },
+    { "kind": "png", "path": "StoreLogo.png", "px": 50 }
+  ]
+}

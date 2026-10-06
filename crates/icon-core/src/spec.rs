@@ -210,6 +210,7 @@ const PRESET_SOURCES: &[&str] = &[
     include_str!("../presets/android.json"),
     include_str!("../presets/windows.json"),
     include_str!("../presets/web.json"),
+    include_str!("../presets/tauri.json"),
 ];
 
 /// All built-in platforms, in display order.

@@ -52,6 +52,7 @@
   "preview.tile.windows": "Windows",
   "preview.note.noMask": "Not masked by the system",
   "preview.tile.androidThemed": "Android themed",
+  "preview.tile.tauri": "Tauri",
 
   "platforms.title": "Platforms",
   "platforms.selectAll": "Select all",
@@ -64,6 +65,7 @@
   "platform.android.description": "mipmaps for every density, round, adaptive, Play Store",
   "platform.windows.description": "app.ico (16–256 px)",
   "platform.web.description": "favicon, apple-touch-icon, PWA manifest",
+  "platform.tauri.description": "src-tauri/icons for Tauri projects (.ico, .icns, PNGs)",
 
   "export.kindLabel": "Output",
   "export.zip": "ZIP file",

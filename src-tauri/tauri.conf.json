@@ -1,8 +1,8 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
-  "productName": "App Icon Generator",
+  "productName": "Tauricon",
   "version": "0.1.0",
-  "identifier": "com.shawn.appicongenerator",
+  "identifier": "com.shawn.tauricon",
   "build": {
     "beforeDevCommand": "npm run dev",
     "devUrl": "http://localhost:1420",
@@ -12,7 +12,7 @@
   "app": {
     "windows": [
       {
-        "title": "App Icon Generator",
+        "title": "Tauricon - App Icon Generator",
         "width": 1100,
         "height": 760,
         "minWidth": 900,

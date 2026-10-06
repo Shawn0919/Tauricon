@@ -43,6 +43,7 @@ export const PREVIEW_TILES: Record<string, PreviewTile[]> = {
     },
   ],
   windows: [{ label: "preview.tile.windows", shape: "square", source: "custom" }],
+  tauri: [{ label: "preview.tile.tauri", shape: "square", source: "custom" }],
 };
 
 /** Description key for a platform card, if the locale files define one. */

@@ -74,9 +74,19 @@ export const MoonIcon = (p: SVGProps<SVGSVGElement>) => (
   </Svg>
 );
 
-export const LogoIcon =(p: SVGProps<SVGSVGElement>) => (
+/** Simplified Tauricon mark (design/app-icon.svg) that stays legible at 22px. */
+export const LogoIcon = (p: SVGProps<SVGSVGElement>) => (
   <svg width={22} height={22} viewBox="0 0 24 24" aria-hidden="true" {...p}>
-    <rect x="2" y="2" width="20" height="20" rx="5.5" fill="var(--accent)" />
-    <rect x="7" y="7" width="10" height="10" rx="2.5" fill="none" stroke="#fff" strokeWidth="2" />
+    <defs>
+      <linearGradient id="logo-bg" x1="0" y1="0" x2="1" y2="1">
+        <stop offset="0" stopColor="#4F46E5" />
+        <stop offset="1" stopColor="#9333EA" />
+      </linearGradient>
+    </defs>
+    <rect x="1" y="1" width="22" height="22" rx="5.5" fill="url(#logo-bg)" />
+    <rect x="5" y="5" width="8.5" height="8.5" rx="2.2" fill="#fff" />
+    <rect x="15" y="5" width="4" height="4" rx="1.1" fill="#fff" opacity="0.85" />
+    <rect x="5" y="15" width="4" height="4" rx="1.1" fill="#fff" opacity="0.85" />
+    <rect x="15" y="15" width="2.5" height="2.5" rx="0.7" fill="#fff" opacity="0.6" />
   </svg>
 );

@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#4F46E5"/><stop offset="1" stop-color="#9333EA"/>
+    </linearGradient>
+  </defs>
+  <rect width="1024" height="1024" fill="url(#bg)"/>
+  <!-- Tauricon: one large tile plus progressively smaller copies, "every size from one image" -->
+  <rect x="200" y="200" width="400" height="400" rx="96" fill="#fff"/>
+  <rect x="640" y="200" width="184" height="184" rx="46" fill="#fff" opacity="0.85"/>
+  <rect x="640" y="424" width="120" height="120" rx="30" fill="#fff" opacity="0.7"/>
+  <rect x="200" y="640" width="184" height="184" rx="46" fill="#fff" opacity="0.85"/>
+  <rect x="424" y="640" width="120" height="120" rx="30" fill="#fff" opacity="0.7"/>
+  <rect x="640" y="640" width="72" height="72" rx="18" fill="#fff" opacity="0.55"/>
+</svg>

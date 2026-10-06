@@ -1058,3 +1058,9 @@ input[type="checkbox"] {
   font-size: 11px;
   font-variant-numeric: tabular-nums;
 }
+
+.app-subtitle {
+  margin-left: 6px;
+  font-weight: 400;
+  color: var(--text-muted);
+}
