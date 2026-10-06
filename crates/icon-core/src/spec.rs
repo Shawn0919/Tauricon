@@ -56,6 +56,12 @@ pub enum FileSpec {
         /// Overrides the platform's `shape`.
         #[serde(default)]
         shape: Option<ShapeKind>,
+        /// Which image this file is drawn from.
+        #[serde(default)]
+        layer: Layer,
+        /// Only output this file when the condition holds.
+        #[serde(default)]
+        when: Option<Condition>,
     },
     Ico {
         path: String,
@@ -68,13 +74,46 @@ pub enum FileSpec {
     AppleContents {
         path: String,
     },
-    /// Text file; `{{background_hex}}` is replaced with the background color.
+    /// Text file. Placeholders: `{{background_hex}}` (background color),
+    /// `{{adaptive_background}}` (Android drawable reference for the
+    /// background layer) and `{{monochrome_line}}` (Android `<monochrome>`
+    /// element, or nothing).
     Text {
         path: String,
         template: String,
         #[serde(default)]
         tag: Option<String>,
+        #[serde(default)]
+        when: Option<Condition>,
     },
+}
+
+/// Image a file is drawn from.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Hash, Deserialize, Serialize)]
+#[serde(rename_all = "snake_case")]
+pub enum Layer {
+    /// The main source image with the user's style applied.
+    #[default]
+    Main,
+    /// Adaptive icon foreground: its own image if given, else the main image.
+    Foreground,
+    /// Adaptive icon background: its own image if given, else the style background.
+    Background,
+    /// Themed (monochrome) icon: its own image if given, else derived from
+    /// the foreground's silhouette.
+    Monochrome,
+}
+
+/// Situations in which an optional file is output.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize, Serialize)]
+#[serde(rename_all = "snake_case")]
+pub enum Condition {
+    /// The adaptive background needs pixels (an image or a gradient).
+    BackgroundImage,
+    /// The adaptive background is a plain color (or none).
+    BackgroundColor,
+    /// A monochrome (themed) icon was requested.
+    Monochrome,
 }
 
 impl PlatformSpec {
@@ -102,6 +141,13 @@ impl FileSpec {
     pub fn tag(&self) -> Option<&str> {
         match self {
             FileSpec::Png { tag, .. } | FileSpec::Text { tag, .. } => tag.as_deref(),
+            _ => None,
+        }
+    }
+
+    pub fn condition(&self) -> Option<Condition> {
+        match self {
+            FileSpec::Png { when, .. } | FileSpec::Text { when, .. } => *when,
             _ => None,
         }
     }

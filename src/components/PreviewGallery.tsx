@@ -1,3 +1,4 @@
+import type { CSSProperties } from "react";
 import { useI18n } from "../i18n";
 import { PREVIEW_TILES, type PreviewSource, type PreviewTile } from "../lib/platformMeta";
 
@@ -11,7 +12,9 @@ const SMALL_SIZES = [16, 24, 32, 48];
 
 export function PreviewGallery({ previews, platformIds }: Props) {
   const { t } = useI18n();
-  const tiles: PreviewTile[] = platformIds.flatMap((id) => PREVIEW_TILES[id] ?? []);
+  const tiles: PreviewTile[] = platformIds
+    .flatMap((id) => PREVIEW_TILES[id] ?? [])
+    .filter((tile) => !tile.optional || previews[tile.source]);
   const showFavicon = platformIds.includes("web");
   const previewUrl = previews.base;
   // Small sizes matter most for Windows/Web, which show the user's shape.
@@ -27,11 +30,20 @@ export function PreviewGallery({ previews, platformIds }: Props) {
           <div className="tiles">
             {tiles.map((tile) => (
               <figure key={tile.label} className="tile">
-                <img
-                  className={`tile-image shape-${tile.shape} ${tile.opaque ? "opaque" : "checkerboard"}`}
-                  src={previews[tile.source] ?? previewUrl}
-                  alt={t(tile.label)}
-                />
+                {tile.themed ? (
+                  <div
+                    className={`tile-image shape-${tile.shape} themed`}
+                    style={{ "--silhouette": `url(${previews[tile.source]})` } as CSSProperties}
+                    role="img"
+                    aria-label={t(tile.label)}
+                  />
+                ) : (
+                  <img
+                    className={`tile-image shape-${tile.shape} ${tile.opaque ? "opaque" : "checkerboard"}`}
+                    src={previews[tile.source] ?? previewUrl}
+                    alt={t(tile.label)}
+                  />
+                )}
                 <figcaption>
                   {t(tile.label)}
                   {tile.note && <span className="muted">{t(tile.note)}</span>}

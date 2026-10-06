@@ -6,9 +6,12 @@ import {
   generateIcons,
   listPlatforms,
   loadSource,
+  loadLayer,
+  clearLayer,
   SUPPORTED_EXTENSIONS,
   type OutputTarget,
   type PlatformInfo,
+  type Layer,
   type SourceInfo,
   type StyleOptions,
 } from "./lib/api";
@@ -28,10 +31,12 @@ import { WarningIcon } from "./components/Icons";
 import type { Preferences } from "./components/SettingsDialog";
 import {
   AndroidOptions,
+  androidConditions,
   androidDisabledTags,
   androidScales,
   DEFAULT_ANDROID_SETTINGS,
   type AndroidSettings,
+  type LayerSources,
 } from "./components/AndroidOptions";
 import { PresetMenu, type PlatformPreset } from "./components/PresetMenu";
 import { RecentFiles } from "./components/RecentFiles";
@@ -85,11 +90,17 @@ export function Workspace({ preferences }: Props) {
   const [loading, setLoading] = useState(false);
   const [sourceError, setSourceError] = useState<unknown>(null);
   const [status, setStatus] = useState<ExportStatus>({ kind: "idle" });
+  const [layers, setLayers] = useState<LayerSources>({});
+  // Bumped whenever layer images change so previews re-render.
+  const [layerRevision, setLayerRevision] = useState(0);
 
   useEffect(() => {
     listPlatforms().then(setPlatforms);
   }, []);
 
+  // Stored settings from older versions may lack newer fields.
+  const android: AndroidSettings = { ...DEFAULT_ANDROID_SETTINGS, ...settings.android };
+  const styleSettings: StyleSettings = { ...DEFAULT_STYLE, ...settings.style };
 
   const families = useMemo(() => groupPlatforms(platforms), [platforms]);
   // Base ids in the backend's display order, regardless of click order.
@@ -101,25 +112,54 @@ export function Workspace({ preferences }: Props) {
     .filter((f) => selectedIds.includes(f.base.id))
     .map((f) => f.variants.find((v) => v.id === settings.variants[f.base.id]) ?? f.base);
   const style: StyleOptions = {
-    background: toBackground(settings.style),
-    padding: settings.style.padding,
-    cornerRadius: settings.style.cornerRadius,
-    macosTemplate: settings.style.macosTemplate,
-    scales: androidScales(settings.android),
+    background: toBackground(styleSettings),
+    padding: styleSettings.padding,
+    cornerRadius: styleSettings.cornerRadius,
+    macosTemplate: styleSettings.macosTemplate,
+    scales: androidScales(android),
   };
-  const preview = usePreview(source, style, null);
-  const macPreview = usePreview(source, style, "macos", selectedIds.includes("macos"));
+  const androidSelected = selectedIds.includes("android");
+  const preview = usePreview(source, style, { kind: "plain" });
+  const macPreview = usePreview(
+    source,
+    style,
+    { kind: "platform", id: "macos" },
+    { enabled: selectedIds.includes("macos") },
+  );
   // Windows and Web share the "custom" shape; either one's preview works.
   const customPreview = usePreview(
     source,
     style,
-    "windows",
-    selectedIds.includes("windows") || selectedIds.includes("web"),
+    { kind: "platform", id: "windows" },
+    { enabled: selectedIds.includes("windows") || selectedIds.includes("web") },
+  );
+  const adaptivePreview = usePreview(
+    source,
+    style,
+    { kind: "androidAdaptive" },
+    { enabled: androidSelected && android.adaptive, revision: layerRevision },
+  );
+  const monochromePreview = usePreview(
+    source,
+    style,
+    { kind: "androidMonochrome" },
+    {
+      enabled: androidSelected && android.adaptive && android.monochrome,
+      revision: layerRevision,
+    },
   );
 
-  const disabledTags = androidDisabledTags(settings.android);
+  const disabledTags = androidDisabledTags(android);
+  const conditions = androidConditions(
+    android,
+    layers,
+    style.background?.type === "linearGradient",
+  );
   const countFiles = (p: PlatformInfo) =>
-    p.fileCount - disabledTags.reduce((sum, tag) => sum + (p.tagCounts[tag] ?? 0), 0);
+    p.fileCount -
+    p.optionalFiles.filter(
+      (f) => (f.tag !== null && disabledTags.includes(f.tag)) || (f.when !== null && !conditions[f.when]),
+    ).length;
   const fileCount = outputs.reduce((sum, p) => sum + countFiles(p), 0);
 
   const blockedReason = !source
@@ -197,6 +237,7 @@ export function Workspace({ preferences }: Props) {
           ...style,
           optimizePng: settings.optimizePng,
           disabledTags,
+          monochrome: android.adaptive && android.monochrome,
         },
         choice.target,
         (progress) => setStatus({ kind: "running", progress }),
@@ -228,6 +269,29 @@ export function Workspace({ preferences }: Props) {
     return () => window.removeEventListener("keydown", onKeyDown);
   }, []);
 
+  async function pickLayer(layer: Layer) {
+    const path = await open({
+      multiple: false,
+      directory: false,
+      filters: [{ name: t("dialog.imageFilter"), extensions: SUPPORTED_EXTENSIONS }],
+    });
+    if (!path) return;
+    setSourceError(null);
+    try {
+      const info = await loadLayer(layer, path);
+      setLayers((current) => ({ ...current, [layer]: info }));
+      setLayerRevision((r) => r + 1);
+    } catch (err) {
+      setSourceError(err);
+    }
+  }
+
+  async function resetLayer(layer: Layer) {
+    await clearLayer(layer);
+    setLayers(({ [layer]: _removed, ...rest }) => rest);
+    setLayerRevision((r) => r + 1);
+  }
+
   // Stored as raw errors so messages re-translate when the language changes.
   const visibleError = sourceError ?? preview.error;
 
@@ -255,8 +319,8 @@ export function Workspace({ preferences }: Props) {
             </div>
           )}
           <StylePanel
-            style={settings.style}
-            onChange={(patch) => update({ style: { ...settings.style, ...patch } })}
+            style={styleSettings}
+            onChange={(patch) => update({ style: { ...styleSettings, ...patch } })}
           />
           <OutputOptions
             optimizePng={settings.optimizePng}
@@ -266,7 +330,13 @@ export function Workspace({ preferences }: Props) {
 
         <main className="content">
           <PreviewGallery
-            previews={{ base: preview.url, macos: macPreview.url, custom: customPreview.url }}
+            previews={{
+              base: preview.url,
+              macos: macPreview.url,
+              custom: customPreview.url,
+              adaptive: adaptivePreview.url,
+              monochrome: monochromePreview.url,
+            }}
             platformIds={selectedIds}
           />
           <PlatformPicker
@@ -281,9 +351,12 @@ export function Workspace({ preferences }: Props) {
             renderExtras={(baseId, checked) =>
               baseId === "android" && (
                 <AndroidOptions
-                  settings={settings.android}
+                  settings={android}
+                  layers={layers}
                   disabled={!checked}
-                  onChange={(patch) => update({ android: { ...settings.android, ...patch } })}
+                  onChange={(patch) => update({ android: { ...android, ...patch } })}
+                  onPickLayer={pickLayer}
+                  onClearLayer={resetLayer}
                 />
               )
             }

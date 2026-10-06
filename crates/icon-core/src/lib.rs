@@ -12,7 +12,10 @@ pub mod style;
 
 pub use error::{Error, Result};
 pub use export::{write_to_folder, write_zip, write_zip_file};
-pub use generate::{GenerateOptions, GeneratedFile, generate, render_preview};
+pub use generate::{
+    GenerateOptions, GeneratedFile, PreviewTarget, Sources, generate, generate_with_layers,
+    render_preview,
+};
 pub use source::{Source, SourceKind};
 pub use spec::{PlatformSpec, builtin_platforms};
 pub use style::{Background, Color};

@@ -4,7 +4,8 @@ use std::sync::Mutex;
 
 use icon_core::spec::FileSpec;
 use icon_core::{
-    Background, Color, GenerateOptions, GeneratedFile, Source, builtin_platforms, generate,
+    Background, Color, GenerateOptions, GeneratedFile, PreviewTarget, Source, Sources,
+    builtin_platforms, generate, generate_with_layers, render_preview,
 };
 use image::{ColorType, ImageFormat, ImageReader, Rgba, RgbaImage};
 
@@ -64,7 +65,8 @@ fn every_spec_file_is_produced_with_the_right_size() {
             .iter()
             .filter(|p| p.variant_of.is_none())
         {
-            for file in &platform.files {
+            // Conditional files are covered by the adaptive layer tests below.
+            for file in platform.files.iter().filter(|f| f.condition().is_none()) {
                 let path = format!("{}/{}", platform.output_dir(), file.path());
                 let bytes = out.get(&path).unwrap_or_else(|| panic!("missing {path}"));
                 if let FileSpec::Png { px, .. } = file {
@@ -397,4 +399,188 @@ fn scale_option_overrides_adaptive_foreground_size() {
     );
     // Out-of-range values are clamped rather than rejected.
     assert_eq!(foreground(Some(5.0)), foreground(Some(1.0)));
+}
+
+// ---------- Android adaptive layers ----------
+
+fn red_square() -> Source {
+    let svg = r##"<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 10 10">
+        <rect width="10" height="10" fill="#ff0000"/></svg>"##;
+    Source::from_bytes(svg.as_bytes(), None).unwrap()
+}
+
+fn android_files(sources: Sources, options: GenerateOptions) -> HashMap<String, Vec<u8>> {
+    let options = GenerateOptions {
+        platforms: vec!["android".into()],
+        ..options
+    };
+    generate_with_layers(sources, &options, |_, _| {})
+        .unwrap()
+        .into_iter()
+        .map(|f| (f.path, f.bytes))
+        .collect()
+}
+
+const ADAPTIVE_XML: &str = "android/res/mipmap-anydpi-v26/ic_launcher.xml";
+const COLOR_XML: &str = "android/res/values/ic_launcher_background.xml";
+const BG_PNG: &str = "android/res/mipmap-xxxhdpi/ic_launcher_background.png";
+const FG_PNG: &str = "android/res/mipmap-xxxhdpi/ic_launcher_foreground.png";
+const MONO_PNG: &str = "android/res/mipmap-xxxhdpi/ic_launcher_monochrome.png";
+
+#[test]
+fn solid_background_uses_a_color_resource() {
+    let source = raster_source();
+    let out = android_files(
+        Sources::single(&source),
+        GenerateOptions {
+            background: Some(Background::solid(Color { r: 1, g: 2, b: 3 })),
+            ..Default::default()
+        },
+    );
+    let xml = String::from_utf8_lossy(&out[ADAPTIVE_XML]);
+    assert!(xml.contains("@color/ic_launcher_background"), "{xml}");
+    assert!(
+        !xml.contains("monochrome"),
+        "no themed icon unless asked: {xml}"
+    );
+    assert!(out.contains_key(COLOR_XML));
+    assert!(!out.contains_key(BG_PNG));
+}
+
+#[test]
+fn gradient_background_becomes_an_image_layer() {
+    let source = raster_source();
+    let out = android_files(
+        Sources::single(&source),
+        GenerateOptions {
+            background: Some(Background::LinearGradient {
+                from: Color { r: 255, g: 0, b: 0 },
+                to: Color { r: 0, g: 0, b: 255 },
+                angle: 180.0,
+            }),
+            ..Default::default()
+        },
+    );
+    let xml = String::from_utf8_lossy(&out[ADAPTIVE_XML]);
+    assert!(xml.contains("@mipmap/ic_launcher_background"), "{xml}");
+    assert!(!out.contains_key(COLOR_XML));
+
+    let bg = decode(&out[BG_PNG]).to_rgba8();
+    assert_eq!(bg.dimensions(), (432, 432));
+    assert!(bg.get_pixel(216, 2)[0] > 240, "top is red");
+    assert!(bg.get_pixel(216, 429)[2] > 240, "bottom is blue");
+    assert!(
+        bg.pixels().all(|p| p[3] == 255),
+        "background layer is opaque"
+    );
+}
+
+#[test]
+fn background_image_layer_is_drawn_full_bleed() {
+    let main = Source::from_bytes(CIRCLE_SVG.as_bytes(), None).unwrap();
+    let background = red_square();
+    let out = android_files(
+        Sources {
+            background: Some(&background),
+            ..Sources::single(&main)
+        },
+        GenerateOptions::default(),
+    );
+    let bg = decode(&out[BG_PNG]).to_rgba8();
+    assert_eq!(bg.get_pixel(0, 0).0, [255, 0, 0, 255]);
+    assert_eq!(bg.get_pixel(431, 431).0, [255, 0, 0, 255]);
+    assert!(String::from_utf8_lossy(&out[ADAPTIVE_XML]).contains("@mipmap/ic_launcher_background"));
+}
+
+#[test]
+fn foreground_layer_overrides_only_adaptive_files() {
+    let main = red_square();
+    let foreground = Source::from_bytes(CIRCLE_SVG.as_bytes(), None).unwrap();
+    let out = android_files(
+        Sources {
+            foreground: Some(&foreground),
+            ..Sources::single(&main)
+        },
+        GenerateOptions::default(),
+    );
+    let fg = decode(&out[FG_PNG]).to_rgba8();
+    assert_eq!(
+        fg.get_pixel(216, 216).0,
+        [0, 0, 255, 255],
+        "foreground from its own image"
+    );
+
+    let legacy = decode(&out["android/res/mipmap-xxxhdpi/ic_launcher.png"]).to_rgba8();
+    assert_eq!(
+        legacy.get_pixel(96, 96).0,
+        [255, 0, 0, 255],
+        "legacy icon from the main image"
+    );
+}
+
+#[test]
+fn monochrome_layer_is_a_white_silhouette_of_the_foreground() {
+    let source = Source::from_bytes(CIRCLE_SVG.as_bytes(), None).unwrap();
+    let out = android_files(
+        Sources::single(&source),
+        GenerateOptions {
+            monochrome: true,
+            ..Default::default()
+        },
+    );
+    let xml = String::from_utf8_lossy(&out[ADAPTIVE_XML]);
+    assert!(
+        xml.contains("<monochrome android:drawable=\"@mipmap/ic_launcher_monochrome\"/>"),
+        "{xml}"
+    );
+
+    let mono = decode(&out[MONO_PNG]).to_rgba8();
+    assert_eq!(
+        mono.get_pixel(216, 216).0,
+        [255, 255, 255, 255],
+        "opaque where the art is"
+    );
+    assert_eq!(mono.get_pixel(0, 0)[3], 0, "transparent elsewhere");
+    assert!(
+        mono.pixels()
+            .all(|p| p[3] == 0 || (p[0], p[1], p[2]) == (255, 255, 255))
+    );
+}
+
+#[test]
+fn adaptive_preview_shows_layers_cropped_to_the_visible_area() {
+    let foreground = Source::from_bytes(CIRCLE_SVG.as_bytes(), None).unwrap();
+    let background = red_square();
+    let sources = Sources {
+        background: Some(&background),
+        ..Sources::single(&foreground)
+    };
+    let preview = render_preview(
+        sources,
+        200,
+        &GenerateOptions::default(),
+        &PreviewTarget::AndroidAdaptive,
+    )
+    .unwrap();
+    assert_eq!(preview.dimensions(), (200, 200));
+    assert_eq!(
+        preview.get_pixel(100, 100).0,
+        [0, 0, 255, 255],
+        "foreground in the middle"
+    );
+    assert_eq!(
+        preview.get_pixel(2, 2).0,
+        [255, 0, 0, 255],
+        "background at the edges"
+    );
+
+    let mono = render_preview(
+        sources,
+        200,
+        &GenerateOptions::default(),
+        &PreviewTarget::AndroidMonochrome,
+    )
+    .unwrap();
+    assert_eq!(mono.get_pixel(100, 100).0, [255, 255, 255, 255]);
+    assert_eq!(mono.get_pixel(2, 2)[3], 0);
 }

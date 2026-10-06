@@ -7,9 +7,25 @@ export interface PlatformInfo {
   /** Base platform id when this is an alternative output of it (e.g. ios-single → ios). */
   variantOf: string | null;
   fileCount: number;
-  /** Files per optional tag (e.g. { round: 5, adaptive: 8 }). */
-  tagCounts: Record<string, number>;
+  /** Files only output depending on options (see crates/icon-core spec `tag`/`when`). */
+  optionalFiles: OptionalFile[];
 }
+
+export type Condition = "background_image" | "background_color" | "monochrome";
+
+export interface OptionalFile {
+  tag: string | null;
+  when: Condition | null;
+}
+
+/** Android adaptive icon layers that can use their own image. */
+export type Layer = "foreground" | "background" | "monochrome";
+
+export type PreviewTarget =
+  | { kind: "plain" }
+  | { kind: "platform"; id: string }
+  | { kind: "androidAdaptive" }
+  | { kind: "androidMonochrome" };
 
 export type SourceKind = "raster" | "vector";
 export type SourceWarning = "notSquare" | "lowResolution";
@@ -53,6 +69,8 @@ export interface GenerateOptions extends StyleOptions {
   optimizePng: boolean;
   /** Skip spec files with these tags. */
   disabledTags: string[];
+  /** Also output Android 13+ themed (monochrome) icon layers. */
+  monochrome: boolean;
 }
 
 export type OutputTarget = { kind: "zip"; path: string } | { kind: "folder"; path: string };
@@ -89,17 +107,25 @@ export function loadSource(path: string): Promise<SourceInfo> {
   return invoke("load_source", { path });
 }
 
+export function loadLayer(layer: Layer, path: string): Promise<SourceInfo> {
+  return invoke("load_layer", { layer, path });
+}
+
+export function clearLayer(layer: Layer): Promise<void> {
+  return invoke("clear_layer", { layer });
+}
+
 /**
- * Renders the icon as `platform`'s main icon would look (or full-bleed when
- * null). Resolves to an object URL for a PNG; revoke it with URL.revokeObjectURL.
+ * Renders a preview of `target` with the given style.
+ * Resolves to an object URL for a PNG; revoke it with URL.revokeObjectURL.
  */
 export async function renderPreview(
   size: number,
   style: StyleOptions,
-  platform: string | null,
+  target: PreviewTarget,
 ): Promise<string> {
   const options = { ...style, platforms: [] };
-  const bytes = await invoke<ArrayBuffer>("render_preview", { size, options, platform });
+  const bytes = await invoke<ArrayBuffer>("render_preview", { size, options, target });
   return URL.createObjectURL(new Blob([bytes], { type: "image/png" }));
 }
 

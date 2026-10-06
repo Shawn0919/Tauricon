@@ -904,3 +904,40 @@ input[type="checkbox"] {
 .field-row .segmented-small.field-value {
   margin-left: auto;
 }
+
+/* ---------- Android layers ---------- */
+
+.sub-field-title {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-muted);
+}
+
+.layer-row {
+  display: grid;
+  grid-template-columns: 64px 1fr auto;
+  align-items: center;
+  gap: 8px;
+}
+
+.layer-value {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Themed icon: the system paints the silhouette in a wallpaper-derived color. */
+.tile-image.themed {
+  position: relative;
+  background: #0b3a5b;
+  overflow: hidden;
+}
+
+.tile-image.themed::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: #c2e7ff;
+  -webkit-mask: var(--silhouette) center / cover no-repeat;
+  mask: var(--silhouette) center / cover no-repeat;
+}

@@ -10,6 +10,8 @@ pub fn run() {
         .invoke_handler(tauri::generate_handler![
             commands::list_platforms,
             commands::load_source,
+            commands::load_layer,
+            commands::clear_layer,
             commands::render_preview,
             commands::generate_icons,
         ])
