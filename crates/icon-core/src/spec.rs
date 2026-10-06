@@ -10,6 +10,13 @@ use serde::{Deserialize, Serialize};
 pub struct PlatformSpec {
     pub id: String,
     pub name: String,
+    /// Set on alternative outputs of another platform (e.g. iOS single-size
+    /// is a variant of "ios"). Only one platform per family can be generated.
+    #[serde(default)]
+    pub variant_of: Option<String>,
+    /// Top-level output folder; defaults to `id`.
+    #[serde(default)]
+    pub output_dir: Option<String>,
     /// Default background behavior for this platform's images.
     #[serde(default)]
     pub fill: Fill,
@@ -53,6 +60,17 @@ pub enum FileSpec {
         path: String,
         template: String,
     },
+}
+
+impl PlatformSpec {
+    pub fn output_dir(&self) -> &str {
+        self.output_dir.as_deref().unwrap_or(&self.id)
+    }
+
+    /// The platform family: its own id, or the id it is a variant of.
+    pub fn family(&self) -> &str {
+        self.variant_of.as_deref().unwrap_or(&self.id)
+    }
 }
 
 impl FileSpec {
@@ -105,6 +123,7 @@ fn one() -> f32 {
 
 const PRESET_SOURCES: &[&str] = &[
     include_str!("../presets/ios.json"),
+    include_str!("../presets/ios-single.json"),
     include_str!("../presets/watchos.json"),
     include_str!("../presets/macos.json"),
     include_str!("../presets/android.json"),
@@ -161,6 +180,15 @@ mod tests {
                     _ => {}
                 }
             }
+        }
+    }
+
+    #[test]
+    fn variants_point_at_a_base_platform_and_share_its_folder() {
+        for platform in builtin_platforms().iter().filter(|p| p.variant_of.is_some()) {
+            let base = find_platform(platform.family()).expect("variant base exists");
+            assert!(base.variant_of.is_none(), "{}: variants must not chain", platform.id);
+            assert_eq!(platform.output_dir(), base.output_dir(), "{}", platform.id);
         }
     }
 

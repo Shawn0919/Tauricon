@@ -33,6 +33,7 @@ impl From<icon_core::Error> for CommandError {
             E::DimensionsTooLarge { .. } => "dimensionsTooLarge",
             E::EmptyImage => "emptyImage",
             E::UnknownPlatform(_) => "unknownPlatform",
+            E::PlatformConflict(..) => "platformConflict",
             E::UnsafePath(_) => "unsafePath",
             E::Encode { .. } => "encode",
             E::Zip(_) => "zip",

@@ -16,12 +16,12 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     };
     let mut platforms: Vec<String> = args.collect();
     if platforms.is_empty() {
-        platforms = builtin_platforms().iter().map(|p| p.id.clone()).collect();
+        platforms = builtin_platforms().iter().filter(|p| p.variant_of.is_none()).map(|p| p.id.clone()).collect();
     }
 
     let started = Instant::now();
     let source = Source::open(&PathBuf::from(&input))?;
-    let options = GenerateOptions { platforms, background: None, padding: 0.0 };
+    let options = GenerateOptions { platforms, background: None, padding: 0.0, optimize_png: false };
     let files = generate(&source, &options, |_, _| {})?;
 
     let output = PathBuf::from(output);

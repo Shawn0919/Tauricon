@@ -4,6 +4,8 @@ import { Channel, invoke } from "@tauri-apps/api/core";
 export interface PlatformInfo {
   id: string;
   name: string;
+  /** Base platform id when this is an alternative output of it (e.g. ios-single → ios). */
+  variantOf: string | null;
   fileCount: number;
 }
 
@@ -30,6 +32,8 @@ export interface GenerateOptions {
   background: Color | null;
   /** Fraction of the icon size on each side, 0–0.4. */
   padding: number;
+  /** Losslessly recompress PNG files. */
+  optimizePng: boolean;
 }
 
 export type OutputTarget = { kind: "zip"; path: string } | { kind: "folder"; path: string };

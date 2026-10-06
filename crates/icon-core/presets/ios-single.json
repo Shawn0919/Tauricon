@@ -1,0 +1,12 @@
+{
+  "id": "ios-single",
+  "name": "iOS / iPadOS",
+  "variant_of": "ios",
+  "output_dir": "ios",
+  "fill": "always",
+  "files": [
+    { "kind": "png", "path": "AppIcon.appiconset/Icon-1024.png", "px": 1024, "strip_alpha": true,
+      "apple": [{ "idiom": "universal", "platform": "ios", "size": "1024x1024" }] },
+    { "kind": "apple_contents", "path": "AppIcon.appiconset/Contents.json" }
+  ]
+}

@@ -7,6 +7,7 @@
     "core:default",
     "opener:default",
     "opener:allow-reveal-item-in-dir",
-    "dialog:default"
+    "dialog:default",
+    "core:window:allow-set-theme"
   ]
 }

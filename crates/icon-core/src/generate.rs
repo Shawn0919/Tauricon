@@ -60,6 +60,9 @@ pub struct GenerateOptions {
     /// Empty space on each side, as a fraction of the icon size (0.0..=0.4).
     #[serde(default)]
     pub padding: f32,
+    /// Losslessly recompress PNG files (smaller output, slower).
+    #[serde(default)]
+    pub optimize_png: bool,
 }
 
 #[derive(Debug, Clone)]
@@ -104,22 +107,35 @@ pub fn generate(
         })
         .collect::<Result<_>>()?;
 
-    let ctx = Context { renders, background: options.background, padding };
+    let ctx = Context {
+        renders,
+        background: options.background,
+        padding,
+        optimize_png: options.optimize_png,
+    };
     jobs.par_iter()
         .map(|(platform, file)| {
             let bytes = ctx.build(platform, file)?;
             tick();
-            Ok(GeneratedFile { path: format!("{}/{}", platform.id, file.path()), bytes })
+            Ok(GeneratedFile { path: output_path(platform, file), bytes })
         })
         .collect()
+}
+
+fn output_path(platform: &PlatformSpec, file: &FileSpec) -> String {
+    format!("{}/{}", platform.output_dir(), file.path())
 }
 
 fn resolve_platforms(ids: &[String]) -> Result<Vec<&'static PlatformSpec>> {
     let mut platforms: Vec<&PlatformSpec> = Vec::new();
     for id in ids {
         let platform = find_platform(id).ok_or_else(|| Error::UnknownPlatform(id.clone()))?;
-        if !platforms.iter().any(|p| p.id == platform.id) {
-            platforms.push(platform);
+        match platforms.iter().find(|p| p.family() == platform.family()) {
+            Some(existing) if existing.id == platform.id => {}
+            Some(existing) => {
+                return Err(Error::PlatformConflict(existing.id.clone(), platform.id.clone()));
+            }
+            None => platforms.push(platform),
         }
     }
     Ok(platforms)
@@ -147,14 +163,12 @@ struct Context {
     renders: HashMap<u32, RgbaImage>,
     background: Option<Color>,
     padding: f32,
+    optimize_png: bool,
 }
 
 impl Context {
     fn build(&self, platform: &PlatformSpec, file: &FileSpec) -> Result<Vec<u8>> {
-        let encode_err = |message: String| Error::Encode {
-            path: format!("{}/{}", platform.id, file.path()),
-            message,
-        };
+        let encode_err = |message: String| Error::Encode { path: output_path(platform, file), message };
 
         match file {
             FileSpec::Png { px, fill, mask, content_scale, strip_alpha, .. } => {
@@ -164,7 +178,8 @@ impl Context {
                     background = background.or(Some(Color::WHITE));
                 }
                 let image = self.compose(*px, *content_scale, background, *mask);
-                encode_png(image, *strip_alpha).map_err(encode_err)
+                let png = encode_png(image, *strip_alpha).map_err(encode_err)?;
+                Ok(if self.optimize_png { optimize_png(png) } else { png })
             }
             FileSpec::Ico { sizes, .. } => {
                 let background = self.resolve_fill(platform.fill);
@@ -274,6 +289,21 @@ fn encode_png(image: RgbaImage, strip_alpha: bool) -> std::result::Result<Vec<u8
     };
     result.map_err(|e| e.to_string())?;
     Ok(out.into_inner())
+}
+
+/// Lossless recompression that keeps the color type and bit depth, so files
+/// still meet store rules (e.g. Play Store's 32-bit PNG, App Store's no-alpha).
+/// Falls back to the original bytes if optimization fails or doesn't help.
+fn optimize_png(png: Vec<u8>) -> Vec<u8> {
+    let mut options = oxipng::Options::from_preset(2);
+    options.bit_depth_reduction = false;
+    options.color_type_reduction = false;
+    options.palette_reduction = false;
+    options.grayscale_reduction = false;
+    match oxipng::optimize_from_memory(&png, &options) {
+        Ok(smaller) if smaller.len() < png.len() => smaller,
+        _ => png,
+    }
 }
 
 /// Builds Xcode's `Contents.json` from the platform's PNG slots.

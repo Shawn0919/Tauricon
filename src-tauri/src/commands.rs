@@ -34,6 +34,8 @@ impl AppState {
 pub struct PlatformInfo {
     id: String,
     name: String,
+    /// Base platform id when this is an alternative output of it.
+    variant_of: Option<String>,
     file_count: usize,
 }
 
@@ -41,7 +43,12 @@ pub struct PlatformInfo {
 pub fn list_platforms() -> Vec<PlatformInfo> {
     icon_core::builtin_platforms()
         .iter()
-        .map(|p| PlatformInfo { id: p.id.clone(), name: p.name.clone(), file_count: p.files.len() })
+        .map(|p| PlatformInfo {
+            id: p.id.clone(),
+            name: p.name.clone(),
+            variant_of: p.variant_of.clone(),
+            file_count: p.files.len(),
+        })
         .collect()
 }
 

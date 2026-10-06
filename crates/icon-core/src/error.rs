@@ -28,6 +28,9 @@ pub enum Error {
     #[error("unknown platform: {0}")]
     UnknownPlatform(String),
 
+    #[error("platforms {0} and {1} write to the same folder; choose one")]
+    PlatformConflict(String, String),
+
     #[error("unsafe output path: {0}")]
     UnsafePath(String),
 
