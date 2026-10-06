@@ -1,0 +1,31 @@
+{
+  "id": "macos",
+  "name": "macOS",
+  "files": [
+    { "kind": "png", "path": "AppIcon.appiconset/icon_16.png", "px": 16,
+      "apple": [{ "idiom": "mac", "size": "16x16", "scale": "1x" }] },
+    { "kind": "png", "path": "AppIcon.appiconset/icon_32.png", "px": 32,
+      "apple": [
+        { "idiom": "mac", "size": "16x16", "scale": "2x" },
+        { "idiom": "mac", "size": "32x32", "scale": "1x" }
+      ] },
+    { "kind": "png", "path": "AppIcon.appiconset/icon_64.png", "px": 64,
+      "apple": [{ "idiom": "mac", "size": "32x32", "scale": "2x" }] },
+    { "kind": "png", "path": "AppIcon.appiconset/icon_128.png", "px": 128,
+      "apple": [{ "idiom": "mac", "size": "128x128", "scale": "1x" }] },
+    { "kind": "png", "path": "AppIcon.appiconset/icon_256.png", "px": 256,
+      "apple": [
+        { "idiom": "mac", "size": "128x128", "scale": "2x" },
+        { "idiom": "mac", "size": "256x256", "scale": "1x" }
+      ] },
+    { "kind": "png", "path": "AppIcon.appiconset/icon_512.png", "px": 512,
+      "apple": [
+        { "idiom": "mac", "size": "256x256", "scale": "2x" },
+        { "idiom": "mac", "size": "512x512", "scale": "1x" }
+      ] },
+    { "kind": "png", "path": "AppIcon.appiconset/icon_1024.png", "px": 1024,
+      "apple": [{ "idiom": "mac", "size": "512x512", "scale": "2x" }] },
+    { "kind": "apple_contents", "path": "AppIcon.appiconset/Contents.json" },
+    { "kind": "icns", "path": "AppIcon.icns" }
+  ]
+}

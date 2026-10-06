@@ -1,0 +1,14 @@
+{
+  "id": "web",
+  "name": "Web / PWA",
+  "files": [
+    { "kind": "ico", "path": "favicon.ico", "sizes": [16, 32, 48] },
+    { "kind": "png", "path": "favicon-16x16.png", "px": 16 },
+    { "kind": "png", "path": "favicon-32x32.png", "px": 32 },
+    { "kind": "png", "path": "apple-touch-icon.png", "px": 180, "fill": "always", "strip_alpha": true },
+    { "kind": "png", "path": "icon-192.png", "px": 192 },
+    { "kind": "png", "path": "icon-512.png", "px": 512 },
+    { "kind": "text", "path": "site.webmanifest",
+      "template": "{\n  \"icons\": [\n    { \"src\": \"/icon-192.png\", \"sizes\": \"192x192\", \"type\": \"image/png\" },\n    { \"src\": \"/icon-512.png\", \"sizes\": \"512x512\", \"type\": \"image/png\" }\n  ],\n  \"background_color\": \"{{background_hex}}\",\n  \"display\": \"standalone\"\n}\n" }
+  ]
+}

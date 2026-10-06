@@ -1,0 +1,7 @@
+{
+  "id": "windows",
+  "name": "Windows",
+  "files": [
+    { "kind": "ico", "path": "app.ico", "sizes": [16, 24, 32, 48, 64, 128, 256] }
+  ]
+}
